@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Microsoft.Playwright;
+using System.Net;
 using YP_API.Data;
 using YP_API.Interfaces;
 using YP_API.Repositories;
@@ -49,6 +51,25 @@ builder.Services.AddScoped<IMenuService, MenuService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IPovarScraperService, PovarScraperService>();
 builder.Services.AddScoped<IImageGenerationService, ImageGenerationService>();
+
+
+builder.Services.AddSingleton<IPlaywright>(sp => Playwright.CreateAsync().GetAwaiter().GetResult());
+builder.Services.AddSingleton<IBrowser>(sp => {
+    var playwright = sp.GetRequiredService<IPlaywright>();
+    return playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+    {
+        Headless = true,
+        Args = new[] {
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox",
+            "--start-maximized"
+        }
+    }).GetAwaiter().GetResult();
+});
+
+builder.Services.AddScoped<IPriceParserService, PriceParserService>();
+
+builder.Services.AddHttpClient<IPovarScraperService, PovarScraperService>();
 
 var app = builder.Build();
 ;
