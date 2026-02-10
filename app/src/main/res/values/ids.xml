@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="etRegUsername" type="id" />
+    <item name="tvGoToLogin" type="id" />
+    <item name="btnRegister" type="id" />
+    <item name="etRegConfirmPass" type="id" />
+    <item name="etRegPassword" type="id" />
+    <item name="etRegEmail" type="id" />
+</resources>
