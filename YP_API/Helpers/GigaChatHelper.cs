@@ -1,59 +1,36 @@
-﻿using System.Text;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+using System.Text;
+using System.Net.Http.Headers;
 using YP_API.Models;
 using YP_API.Models.AIAPI;
 using static YP_API.Models.AIAPI.Responce.ResponceMenu;
+// Убедитесь, что подключены нужные пространства имен для ваших DTO
 
 namespace YP_API.Helpers
 {
-
-    public class GigaChatHelper
+    public static class GigaChatHelper
     {
+        // ВАШИ КЛЮЧИ
         public static string ClientId = "019bca1f-0f50-72b2-b33b-7fb5c3b89be6";
         public static string AuthorizationKey = "MDE5YmNhMWYtMGY1MC03MmIyLWIzM2ItN2ZiNWMzYjg5YmU2OjE2NjQxYWQ0LWVhMjctNDYzYi1hYjRmLTRjZTI4ZDU1NTVkOA==";
-        public static async Task<Models.AIAPI.Responce.ResponseMessage> GetAnswer(string token, List<Request.Message> messages)
+
+        // ЕДИНЫЙ HttpClient для всего приложения (Critical Fix)
+        private static readonly HttpClient _httpClient = new HttpClient(new HttpClientHandler
         {
-            Models.AIAPI.Responce.ResponseMessage responseMessage = null;
-            string Url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions";
-            using (HttpClientHandler Handler = new HttpClientHandler())
-            {
-                Handler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) => true;
-                using (HttpClient client = new HttpClient(Handler))
-                {
-                    client.DefaultRequestHeaders.Clear();
-                    client.DefaultRequestHeaders.Add("Accept", "application/json");
-                    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
-                    client.DefaultRequestHeaders.Add("X-Client-ID", ClientId);
+            ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+        })
+        {
+            Timeout = TimeSpan.FromMinutes(2) // Увеличиваем тайм-аут для AI
+        };
 
-                    Request DataRequest = new Request()
-                    {
-                        model = "GigaChat",
-                        stream = false,
-                        repetition_penalty = 1,
-                        messages = messages
-                    };
+        // Кеш токена
+        private static string _cachedToken = "";
+        private static DateTime _tokenExpiry = DateTime.MinValue;
 
-                    string JsonContent = JsonConvert.SerializeObject(DataRequest);
-                    using (var content = new StringContent(JsonContent, Encoding.UTF8, "application/json"))
-                    {
-                        HttpResponseMessage Response = await client.PostAsync(Url, content);
-
-                        if (Response.IsSuccessStatusCode)
-                        {
-                            string ResponseContent = await Response.Content.ReadAsStringAsync();
-                            responseMessage = JsonConvert.DeserializeObject<Models.AIAPI.Responce.ResponseMessage>(ResponseContent);
-                        }
-                        else
-                        {
-                            string errorBody = await Response.Content.ReadAsStringAsync();
-                            Console.WriteLine($"❌ API ошибка ({Response.StatusCode}): {errorBody}");
-                        }
-                    }
-                }
-            }
-            return responseMessage;
-        }
-        public static async Task<GeneratedMenuDto?> GenerateAndParseMenuAsync(string token, List<Ingredient> ingredients, int daysCount)
+        /// <summary>
+        /// Основной метод генерации меню с повторными попытками
+        /// </summary>
+        public static async Task<GeneratedMenuDto?> GenerateAndParseMenuAsync(string? ignoredToken, List<Ingredient> ingredients, int daysCount)
         {
             var finalMenu = new GeneratedMenuDto
             {
@@ -63,6 +40,7 @@ namespace YP_API.Helpers
 
             for (int i = 1; i <= daysCount; i++)
             {
+                bool daySuccess = false;
                 string systemPrompt = CreateSingleDayPrompt(ingredients, i);
 
                 var messages = new List<Request.Message>
@@ -70,158 +48,204 @@ namespace YP_API.Helpers
                     new Request.Message { role = "user", content = systemPrompt }
                 };
 
-                var response = await GetAnswer(token, messages);
-                if (response?.choices?.Count > 0)
+                // Попытки генерации одного дня (Retry Logic)
+                for (int attempt = 1; attempt <= 3; attempt++)
                 {
-                    string json = CleanJson(response.choices[0].message.content);
                     try
                     {
-                        var dayMenu = JsonConvert.DeserializeObject<GeneratedMenuDto>(json);
-                        if (dayMenu?.Items != null)
+                        // 1. Всегда получаем актуальный токен
+                        string token = await GetToken();
+
+                        // 2. Делаем запрос
+                        var response = await GetAnswer(token, messages);
+
+                        if (response?.choices?.Count > 0)
                         {
-                            finalMenu.Items.AddRange(dayMenu.Items);
+                            // 3. Чистим и парсим JSON
+                            string rawContent = response.choices[0].message.content;
+                            string json = CleanJson(rawContent);
+
+                            var dayMenu = JsonConvert.DeserializeObject<GeneratedMenuDto>(json);
+
+                            if (dayMenu?.Items != null && dayMenu.Items.Any())
+                            {
+                                // Присваиваем номер дня для надежности
+                                foreach (var item in dayMenu.Items) item.DayNumber = i;
+
+                                finalMenu.Items.AddRange(dayMenu.Items);
+                                daySuccess = true;
+                                break; // Успех, выходим из цикла попыток
+                            }
                         }
+
+                        Console.WriteLine($"⚠️ Попытка {attempt} для дня {i} не удалась (пустой ответ или неверный формат).");
+                        await Task.Delay(1000); // Пауза перед повтором
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Ошибка генерации дня {i}: {ex.Message}");
+                        Console.WriteLine($"❌ Ошибка генерации дня {i} (Попытка {attempt}): {ex.Message}");
+                        await Task.Delay(2000);
                     }
+                }
+
+                if (!daySuccess)
+                {
+                    Console.WriteLine($"⛔ Не удалось сгенерировать меню для дня {i} после 3 попыток.");
                 }
             }
 
             return finalMenu.Items.Count > 0 ? finalMenu : null;
         }
+
+        /// <summary>
+        /// Выполняет запрос к API GigaChat
+        /// </summary>
+        public static async Task<Models.AIAPI.Responce.ResponseMessage?> GetAnswer(string token, List<Request.Message> messages)
+        {
+            string url = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions";
+
+            var requestData = new
+            {
+                model = "GigaChat", // Или GigaChat:latest
+                stream = false,
+                repetition_penalty = 1,
+                messages = messages,
+                temperature = 0.7 // Добавили креативности
+            };
+
+            var jsonContent = JsonConvert.SerializeObject(requestData);
+            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            // Создаем сообщение запроса (HttpClient используется общий, но сообщение создаем новое)
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            request.Headers.Add("X-Client-ID", ClientId); // Иногда требуют этот заголовок
+            request.Content = content;
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorBody = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ API Error ({response.StatusCode}): {errorBody}");
+                return null;
+            }
+
+            string responseContent = await response.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<Models.AIAPI.Responce.ResponseMessage>(responseContent);
+        }
+
+        /// <summary>
+        /// Получает токен, используя кеш и автообновление
+        /// </summary>
+        public static async Task<string> GetToken()
+        {
+            if (!string.IsNullOrEmpty(_cachedToken) && _tokenExpiry > DateTime.UtcNow.AddMinutes(1))
+            {
+                return _cachedToken;
+            }
+
+            string url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth";
+            string rqUid = Guid.NewGuid().ToString(); // Уникальный ID запроса
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", AuthorizationKey);
+            request.Headers.Add("RqUID", rqUid);
+
+            var formData = new List<KeyValuePair<string, string>>
+            {
+                new KeyValuePair<string, string>("scope", "GIGACHAT_API_PERS")
+            };
+            request.Content = new FormUrlEncodedContent(formData);
+
+            try
+            {
+                var response = await _httpClient.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    string error = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"Не удалось получить токен. Status: {response.StatusCode}. Details: {error}");
+                }
+
+                string responseString = await response.Content.ReadAsStringAsync();
+
+                // Используем dynamic для простоты парсинга токена, или создайте класс TokenDto
+                var tokenData = JsonConvert.DeserializeObject<dynamic>(responseString);
+
+                _cachedToken = tokenData.access_token;
+                long expiresAt = tokenData.expires_at; // Unix timestamp в миллисекундах
+                _tokenExpiry = DateTimeOffset.FromUnixTimeMilliseconds(expiresAt).UtcDateTime;
+
+                return _cachedToken;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"CRITICAL AUTH ERROR: {ex.Message}");
+                throw;
+            }
+        }
+
+        private static string CleanJson(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return "";
+
+            // Убираем маркдаун
+            json = json.Replace("```json", "").Replace("```", "").Trim();
+
+            // Находим границы JSON (на случай, если модель написала вступление)
+            int firstBrace = json.IndexOf('{');
+            int lastBrace = json.LastIndexOf('}');
+
+            if (firstBrace >= 0 && lastBrace > firstBrace)
+            {
+                json = json.Substring(firstBrace, lastBrace - firstBrace + 1);
+            }
+
+            return json;
+        }
+
         public static string CreateSingleDayPrompt(List<Ingredient> ingredients, int dayNumber)
         {
-            // Преобразуем список доступных продуктов в строку
-            string ingredientsString = string.Join(", ", ingredients.Select(i => i.Name));
+            string ingredientsString = string.Join(", ", ingredients.Select(i => $"\"{i.Name}\""));
 
             return $@"
-Ты — профессиональный шеф-повар и технический ассистент.
-Твоя задача — составить меню на ДЕНЬ №{dayNumber}, используя продукты: {ingredientsString}.
+Ты — профессиональный шеф-повар. Составь меню на ДЕНЬ №{dayNumber}.
+ОБЯЗАТЕЛЬНО используй некоторые из этих продуктов: {ingredientsString}.
 
-=== КРИТИЧЕСКИ ВАЖНЫЕ ПРАВИЛА ===
-1. ВЕРНИ ТОЛЬКО ВАЛИДНЫЙ JSON. Без ```json, без вступлений, без 'Вот ваше меню'.
-2. ИНГРЕДИЕНТЫ (ingredients) ДОЛЖНЫ БЫТЬ МАССИВОМ ОБЪЕКТОВ.
-   !!! ЗАПРЕЩЕНО использовать строки вида ""Яйцо — 2 шт"" !!!
-   Правильный формат: {{ ""name"": ""Яйцо"", ""quantity"": 2, ""unit"": ""шт"" }}
-3. Поле quantity должно быть ЧИСЛОМ (не строкой ""2"", а числом 2). Если вес по вкусу — пиши 0.
-4. Поле instructions (инструкция) должно быть МАССИВОМ СТРОК (шагов).
-
-=== СТРУКТУРА JSON ===
-Используй строго этот шаблон:
+ВЕРНИ ТОЛЬКО JSON (валидный, без Markdown).
+Формат:
 {{
-  ""menuName"": ""Меню день {dayNumber}"",
   ""items"": [
     {{
       ""dayNumber"": {dayNumber},
       ""mealType"": ""Завтрак"",
       ""recipe"": {{
-        ""title"": ""Название блюда"",
-        ""description"": ""Краткое описание"",
-        ""calories"": 350,
-        ""prepTime"": 15,
-        ""cookTime"": 20,
-        ""instructions"": [
-           ""Нарежьте овощи."",
-           ""Обжарьте их.""
-        ],
+        ""title"": ""Название"",
+        ""description"": ""Описание"",
+        ""calories"": 300,
+        ""prepTime"": 10,
+        ""cookTime"": 15,
+        ""instructions"": [""Шаг 1"", ""Шаг 2""],
         ""ingredients"": [
-            {{ ""name"": ""Продукт А"", ""quantity"": 100, ""unit"": ""г"" }},
-            {{ ""name"": ""Продукт Б"", ""quantity"": 2, ""unit"": ""шт"" }}
+            {{ ""name"": ""Продукт"", ""quantity"": 100, ""unit"": ""г"" }}
         ]
       }}
     }},
     {{
       ""dayNumber"": {dayNumber},
       ""mealType"": ""Обед"",
-      ""recipe"": {{ ... аналогичная структура ... }}
+      ""recipe"": {{ ... }}
     }},
     {{
       ""dayNumber"": {dayNumber},
       ""mealType"": ""Ужин"",
-      ""recipe"": {{ ... аналогичная структура ... }}
+      ""recipe"": {{ ... }}
     }}
   ]
-}}
-";
-        }
-        public static string CreateMenuPrompt(List<Ingredient> ingredients, int daysCount)
-        {
-            string ingredientsString = string.Join(", ", ingredients.Select(i => i.Name));
-
-            return $@"
-                    Ты — профессиональный диетолог и шеф-повар. Твоя задача — составить меню на {daysCount} дней.
-                    Меню должно быть составлено с приоритетным использованием следующих ингредиентов (но можно добавлять и обычные специи/масло): {ingredientsString}.
-                    
-                    ТЫ ОБЯЗАН ВЕРНУТЬ ОТВЕТ ТОЛЬКО В ФОРМАТЕ JSON. 
-                    НЕ ПИШИ НИКАКОГО ВСТУПИТЕЛЬНОГО ИЛИ ЗАКЛЮЧИТЕЛЬНОГО ТЕКСТА.
-                    НЕ ИСПОЛЬЗУЙ MARKDOWN (```json). ПРОСТО ЧИСТЫЙ JSON.
-                    
-                    Используй следующую структуру JSON:
-                    {{
-                      ""menuName"": ""Название меню"",
-                      ""items"": [
-                        {{
-                          ""dayNumber"": 1,
-                          ""mealType"": ""Завтрак"",
-                          ""recipe"": {{
-                            ""title"": ""Название блюда"",
-                            ""description"": ""Краткое описание"",
-                            ""instructions"": ""Шаг 1... Шаг 2..."",
-                            ""calories"": 350,
-                            ""prepTime"": 15,
-                            ""cookTime"": 20,
-                            ""imageurl"": ""Ссылка на картинку по типу (www.image.ru)""
-                            ""ingredients"": [
-                                {{ ""name"": ""Продукт 1"", ""quantity"": 2, ""unit"": ""шт"" }},
-                                {{ ""name"": ""Продукт 2"", ""quantity"": 100, ""unit"": ""мл"" }}
-                            ]
-                          }}
-                        }}
-                      ]
-                    }}
-                    ";
-        }
-        private static string CleanJson(string json)
-        {
-            if (string.IsNullOrEmpty(json)) return json;
-
-            json = json.Replace("```json", "").Replace("```", "").Trim();
-            return json;
-        }
-        public static async Task<string> GetToken()
-        {
-            string ReturnToken = null;
-            string Url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth";
-            using (HttpClientHandler Handler = new HttpClientHandler())
-            {
-                Handler.ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyError) => true;
-                using (HttpClient client = new HttpClient(Handler))
-                {
-                    HttpRequestMessage Request = new HttpRequestMessage(HttpMethod.Post, Url);
-                    Request.Headers.Add("Accept", "application/json");
-                    Request.Headers.Add("RqUID", ClientId);
-                    Request.Headers.Add("Authorization", $"Basic {AuthorizationKey}");
-                    var Data = new List<KeyValuePair<string, string>>
-                    {
-                        new KeyValuePair<string, string>("scope", "GIGACHAT_API_PERS")
-                    };
-                    Request.Content = new FormUrlEncodedContent(Data);
-                    HttpResponseMessage Response = await client.SendAsync(Request);
-                    if (Response.IsSuccessStatusCode)
-                    {
-                        string ResponseContent = await Response.Content.ReadAsStringAsync();
-                        Models.AIAPI.Responce.ResponseToken Token = JsonConvert.DeserializeObject<Models.AIAPI.Responce.ResponseToken>(ResponseContent);
-                        ReturnToken = Token.access_token;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Ошибка получения токена: {Response.StatusCode}");
-                    }
-                }
-            }
-            return ReturnToken;
+}}";
         }
     }
 }
