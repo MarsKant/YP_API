@@ -11,6 +11,12 @@ System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolTyp
 
 var builder = WebApplication.CreateBuilder(args);
 
+var exitCode = Microsoft.Playwright.Program.Main(new[] { "install", "chromium" });
+if (exitCode != 0)
+{
+    Console.WriteLine($"Внимание: Установка браузеров завершилась с кодом {exitCode}");
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -34,8 +40,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-
-
 var connectionString = "Server=127.0.0.1;Port=3306;Database=recipe_planner;Uid=root;Pwd=;";
 
 builder.Services.AddDbContext<RecipePlannerContext>(options =>
@@ -52,32 +56,32 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IPovarScraperService, PovarScraperService>();
 builder.Services.AddScoped<IImageGenerationService, ImageGenerationService>();
 
-
+// НАСТРОЙКА СКРЫТОГО БРАУЗЕРА
 builder.Services.AddSingleton<IPlaywright>(sp => Playwright.CreateAsync().GetAwaiter().GetResult());
 builder.Services.AddSingleton<IBrowser>(sp => {
     var playwright = sp.GetRequiredService<IPlaywright>();
     return playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
     {
-        Headless = false,
+        Headless = false, // Обязательно false для обхода защиты
         Args = new[] {
-            "--disable-blink-features=AutomationControlled",
+            "--disable-blink-features=AutomationControlled", // Скрывает флаг автоматизации
             "--no-sandbox",
-            "--start-maximized"
+            "--window-position=-2000,-2000", // Уводит окно за пределы экрана
+            "--window-size=10,10",           // Делает окно крошечным
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--mute-audio"                   // На всякий случай выключаем звук
         }
     }).GetAwaiter().GetResult();
 });
 
 builder.Services.AddScoped<IPriceParserService, PriceParserService>();
 
-builder.Services.AddHttpClient<IPovarScraperService, PovarScraperService>();
-
 var app = builder.Build();
-;
 
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<RecipePlannerContext>();
-
     try
     {
         await dbContext.Database.EnsureCreatedAsync();
@@ -110,48 +114,4 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
-
-app.MapGet("/api/debug/db-status", async (RecipePlannerContext context) =>
-{
-    try
-    {
-        var canConnect = await context.Database.CanConnectAsync();
-        return Results.Ok(new
-        {
-            success = true,
-            database = "recipe_planner",
-            connected = canConnect
-        });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new
-        {
-            success = false,
-            error = ex.Message
-        });
-    }
-});
-
-app.MapGet("/api/debug/create-db", async (RecipePlannerContext context) =>
-{
-    try
-    {
-        var created = await context.Database.EnsureCreatedAsync();
-        return Results.Ok(new
-        {
-            success = true,
-            created = created
-        });
-    }
-    catch (Exception ex)
-    {
-        return Results.BadRequest(new
-        {
-            success = false,
-            error = ex.Message
-        });
-    }
-});
-
 app.Run();
