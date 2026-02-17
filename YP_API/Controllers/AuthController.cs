@@ -22,14 +22,14 @@ namespace YP_API.Controllers
             try
             {
                 var user = await _authService.Login(username, password);
-
                 return Ok(new
                 {
                     success = true,
                     id = user.Id,
                     username = user.Username,
                     email = user.Email,
-                    message = "Успешный вход"
+                    message = "Успешный вход",
+                    isAdmin = user.IsAdmin
                 });
             }
             catch (Exception ex)

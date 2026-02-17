@@ -116,25 +116,20 @@ namespace YP_API.Controllers
         {
             try
             {
-                var inventoryIngredientIds = await _context.UserInventories
+                var inventoryIngredientIds = await _context.FridgeItems
                     .Where(ui => ui.UserId == userId)
                     .Select(ui => ui.IngredientId)
                     .ToListAsync();
 
                 Console.WriteLine($"[GenerateWeekMenu] User {userId} inventory ingredients: {string.Join(", ", inventoryIngredientIds)}");
 
-                var allergyIngredientIds = await _context.UserAllergies
-                    .Where(a => a.UserId == userId)
-                    .Select(a => a.IngredientId)
-                    .ToListAsync();
 
                 var candidateRecipes = await _context.Recipes
                     .Include(r => r.RecipeIngredients)
                     .Where(r => 
                        
                         r.RecipeIngredients.All(ri => inventoryIngredientIds.Contains(ri.IngredientId))
-                        && r.RecipeIngredients.Count > 0
-                        && !r.RecipeIngredients.Any(ri => allergyIngredientIds.Contains(ri.IngredientId)))
+                        && r.RecipeIngredients.Count > 0)
                     .ToListAsync();
 
                 Console.WriteLine($"[GenerateWeekMenu] Found {candidateRecipes.Count} candidate recipes with STRICT ingredient matching");
@@ -148,7 +143,6 @@ namespace YP_API.Controllers
                 {
                     Console.WriteLine($"[GenerateWeekMenu] Нет рецептов с ВСЕ необходимыми ингредиентами. Детали:");
                     
-                    // Логируем какие рецепты не подошли и почему
                     var allRecipes = await _context.Recipes
                         .Include(r => r.RecipeIngredients)
                         .ToListAsync();

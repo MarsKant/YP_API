@@ -9,6 +9,7 @@ namespace UP.Models
         public string Email { get; set; }
         public string FullName { get; set; }
         public string Token { get; set; }
+        public bool IsAdmin { get; set; }
     }
 
     public class LoginRequest

@@ -74,7 +74,8 @@ namespace UP.Services
                     Id = responseObj.id ?? responseObj.data?.id ?? 0,
                     Username = responseObj.username ?? responseObj.data?.username ?? username,
                     Email = responseObj.email ?? responseObj.data?.email ?? "",
-                    Token = responseObj.token ?? responseObj.data?.token ?? ""
+                    Token = responseObj.token ?? responseObj.data?.token ?? "",
+                    IsAdmin = responseObj.isAdmin ?? false,
                 };
 
                 SetToken(userData.Token);
@@ -112,6 +113,27 @@ namespace UP.Services
             {
                 throw new Exception($"Registration error: {ex.Message}");
             }
+        }
+
+        // --- Users ---
+
+        public async Task<List<UserDto>> GetUsersAsync()
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync("api/users/get");
+                var responseString = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode) return new List<UserDto>();
+
+                var responseObj = JsonConvert.DeserializeObject<dynamic>(responseString);
+                if (responseObj?.data != null)
+                {
+                    return JsonConvert.DeserializeObject<List<UserDto>>(responseObj.data.ToString()) ?? new List<UserDto>();
+                }
+                return new List<UserDto>();
+            }
+            catch { return new List<UserDto>(); }
         }
 
         // --- Recipes ---
@@ -290,7 +312,6 @@ namespace UP.Services
                         {
                             foreach (var meal in day.Meals)
                             {
-                                
                                 await ParseImageForRecipe(meal.RecipeId, meal.RecipeTitle);
                             }
                         }
@@ -423,31 +444,17 @@ namespace UP.Services
             catch { return null; }
         }
 
-        public async Task<bool> SetInventoryByNamesAsync(int userId, List<IngredientDto> productNames)
-        {
-            try
-            {
-                var items = new List<object>();
-                foreach (var name in productNames)
-                {
-                    string trimmed = name.Name.Trim();
-                    if (string.IsNullOrWhiteSpace(trimmed)) continue;
-
-                    int? id = await FindIngredientIdByNameAsync(trimmed);
-                    if (id == null) id = await CreateIngredientByNameAsync(trimmed);
-
-                    if (id != null)
-                        items.Add(new { IngredientId = id.Value, Quantity = 1.0, Unit = "шт" });
-                }
-                if (items.Count == 0) return false;
-
-                string json = System.Text.Json.JsonSerializer.Serialize(items);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var resp = await _httpClient.PostAsync($"api/inventory/set/{userId}", content);
-                return resp.IsSuccessStatusCode;
+        public async Task<bool> RemoveFridgeAsync(int userId, int ingredientId) {
+            try {
+            var response = await _httpClient.DeleteAsync($"api/inventory/user/{userId}/ingredient/{ingredientId}");
+                return response.IsSuccessStatusCode;
             }
-            catch { return false; }
+            catch {
+                return false;
+            }
         }
+
+        
 
         public async Task<int?> FindIngredientIdByNameAsync(string name)
         {

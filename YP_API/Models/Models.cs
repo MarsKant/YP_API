@@ -8,32 +8,7 @@ namespace YP_API.Models
         public string Username { get; set; }
         public string Password { get; set; }
         public string Email { get; set; }
-    }
-    public class UserAllergy
-    {
-        public int Id { get; set; }
-
-        public int UserId { get; set; }
-        public int IngredientId { get; set; }
-
-        public User User { get; set; } = null!;
-        public Ingredient Ingredient { get; set; } = null!;
-    }
-    public class UserInventory
-    {
-        public int Id { get; set; }
-
-        public int UserId { get; set; }
-        public int IngredientId { get; set; }
-
-        public decimal Quantity { get; set; }
-        public string Unit { get; set; } = "";
-
-        public DateTime? ExpiryDate { get; set; }
-        public DateTime AddedAt { get; set; }
-
-        public User User { get; set; } = null!;
-        public Ingredient Ingredient { get; set; } = null!;
+        public bool IsAdmin { get; set; } = false;
     }
     public class FridgeItem
     {
@@ -78,7 +53,6 @@ namespace YP_API.Models
         public string Name { get; set; }
         public string Category { get; set; }
         public string Unit { get; set; }
-        public string? Allergens { get; set; }
     }
 
     public class RecipeIngredient

@@ -17,7 +17,7 @@ namespace YP_API.Services
 
         public async Task<int?> GenerateMenuFromInventoryAsync(int userId)
         {
-            var ingredientIds = await _context.UserInventories
+            var ingredientIds = await _context.FridgeItems
                 .Where(ui => ui.UserId == userId)
                 .Select(ui => ui.IngredientId)
                 .ToListAsync();
@@ -25,15 +25,10 @@ namespace YP_API.Services
             if (!ingredientIds.Any())
                 return null;
 
-            var allergyIds = await _context.UserAllergies
-                .Where(a => a.UserId == userId)
-                .Select(a => a.IngredientId)
-                .ToListAsync();
 
             var candidateRecipes = await _context.Recipes
                 .Include(r => r.RecipeIngredients)
-                .Where(r => r.RecipeIngredients.Any(ri => ingredientIds.Contains(ri.IngredientId))
-                            && !r.RecipeIngredients.Any(ri => allergyIds.Contains(ri.IngredientId)))
+                .Where(r => r.RecipeIngredients.Any(ri => ingredientIds.Contains(ri.IngredientId)))
                 .ToListAsync();
 
             if (!candidateRecipes.Any())

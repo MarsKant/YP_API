@@ -355,9 +355,11 @@
                                    Foreground="#CCCCCC"
                                    Margin="0,0,0,4"/>
 
-                        <Button Content="🔄 Обновить" 
+                        <Button x:Name="usContrBut"
+                                Content="Управление пользователями" 
+                                Visibility="Hidden"
                                 Style="{StaticResource PrimaryButton}"
-                                Click="RefreshData_Click"/>
+                                Click="UsersControl_Click"/>
                     </StackPanel>
                 </Border>
             </Grid>

@@ -140,49 +140,13 @@ namespace YP_API.Controllers
         }
 
 
-        [HttpGet("safe-for-user/{userId}")]
-        public async Task<ActionResult> GetSafeRecipes(int userId)
-        {
-            try
-            {
-                var allergyIngredientIds = await _context.UserAllergies
-                    .Where(a => a.UserId == userId)
-                    .Select(a => a.IngredientId)
-                    .ToListAsync();
 
-                var safeRecipes = await _context.Recipes
-                    .Include(r => r.RecipeIngredients)
-                    .Where(r => !r.RecipeIngredients
-                        .Any(ri => allergyIngredientIds.Contains(ri.IngredientId)))
-                    .ToListAsync();
-
-                return Ok(new
-                {
-                    success = true,
-                    data = safeRecipes.Select(r => new
-                    {
-                        Id = r.Id,
-                        Title = r.Title,
-                        Description = r.Description,
-                        Calories = r.Calories,
-                        ImageUrl = r.ImageUrl
-                    })
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { error = ex.Message });
-            }
-        }
-
-
-        // GET api/recipes/by-fridge/{userId}
         [HttpGet("by-fridge/{userId}")]
         public async Task<ActionResult> GetRecipesByFridge(int userId)
         {
             try
             {
-                var fridgeItems = await _context.UserInventories
+                var fridgeItems = await _context.FridgeItems
                     .Where(ui => ui.UserId == userId)
                     .ToListAsync();
                 
@@ -271,14 +235,12 @@ namespace YP_API.Controllers
             }
         }
 
-        // DEBUG: информация по холодильнику и совпадениям рецептов
-        // GET api/recipes/debug/fridge-info/{userId}
         [HttpGet("debug/fridge-info/{userId}")]
         public async Task<ActionResult> GetFridgeDebugInfo(int userId)
         {
             try
             {
-                var fridgeItems = await _context.UserInventories
+                var fridgeItems = await _context.FridgeItems
                     .Where(ui => ui.UserId == userId)
                     .Include(ui => ui.Ingredient)
                     .ToListAsync();
@@ -314,9 +276,5 @@ namespace YP_API.Controllers
                 return StatusCode(500, new { error = ex.Message });
             }
         }
-
     }
-
-
-
 }

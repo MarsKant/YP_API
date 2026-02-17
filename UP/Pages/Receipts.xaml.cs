@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using UP.Helpers;
 using UP.Models;
+using UP.Services;
 
 namespace UP.Pages
 {
@@ -24,6 +25,15 @@ namespace UP.Pages
             InitializeData();
             LoadUserInfo();
             LoadFridgeIngridients();
+            IsAdmin();
+        }
+
+        private void IsAdmin()
+        {
+            if (AppData.CurrentUser.IsAdmin)
+            {
+                usContrBut.Visibility = Visibility.Visible;
+            }
         }
 
         private async void LoadFridgeIngridients()
@@ -162,7 +172,7 @@ namespace UP.Pages
                                 ingredientDict[key] = new ShoppingListItemDto
                                 {
                                     Name = ingredient.Name,
-                                    // Quantity = ingredient.Quantity, // Если в DTO нет Quantity
+                                    Quantity = ingredient.Quantity,
                                     Unit = ingredient.Unit ?? "шт",
                                     IsPurchased = false
                                 };
@@ -253,19 +263,22 @@ namespace UP.Pages
                     Category = "Разное"
                 };
 
-                if (!_products.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-                {
-                    _products.Add(ingredientDto);
-                    await AppData.ApiService.AddFridgeItem(AppData.CurrentUser.Id, ingredientDto);
+                if (await AppData.ApiService.AddFridgeItem(AppData.CurrentUser.Id, ingredientDto)) {
+                    List<string> productNames = new List<string>();
+                    foreach (var item in _products){
+                        productNames.Add(item.Name);
+                    }
+                    
+                    if (!productNames.Contains(ingredientDto.Name))
+                        _products.Add(ingredientDto);
                 }
             }
-
             NewProductTextBox.Clear();
         }
 
-        private async void RefreshData_Click(object sender, RoutedEventArgs e)
+        private async void UsersControl_Click(object sender, RoutedEventArgs e)
         {
-            // Реализация обновления, если нужно
+            MainWindow.mainWindow.OpenPages(new Pages.Admin.Users());
         }
 
         private async Task GenerateMenu()
@@ -285,12 +298,6 @@ namespace UP.Pages
                     return;
                 }
 
-                var setOk = await AppData.ApiService.SetInventoryByNamesAsync(AppData.CurrentUser.Id, productsList);
-                if (!setOk)
-                {
-                    ToastContainer.ShowToast("Не удалось сохранить продукты в инвентарь", Elements.ToastType.Error);
-                    return;
-                }
 
                 var menu = await AppData.ApiService.GenerateMenuFromGigaChatAsync(AppData.CurrentUser.Id, productsList);
 
@@ -322,12 +329,12 @@ namespace UP.Pages
 
         private async void RemoveProduct_Click(object sender, RoutedEventArgs e)
         {
-            // Логика удаления продукта (если есть API для удаления)
-            // Пока просто удаляем из списка UI
             if (sender is Button button && button.DataContext is IngredientDto product)
             {
-                _products.Remove(product);
+                if (await AppData.ApiService.RemoveFridgeAsync(AppData.CurrentUser.Id, product.Id))
+                    _products.Remove(product);
             }
+
         }
 
         private async void GenerateShoppingList_Click(object sender, RoutedEventArgs e)

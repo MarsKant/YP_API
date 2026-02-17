@@ -8,9 +8,8 @@ namespace YP_API.Data
         public static void Seed(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>().HasData(
-                new User { Id = 1, Username = "qwe", Password = "qweqwe", Email = "admin@example.com" },
-                new User { Id = 2, Username = "user1", Password = "user123", Email = "user1@example.com" },
-                new User { Id = 3, Username = "user2", Password = "user123", Email = "user2@example.com" }
+                new User { Id = 1, Username = "qwe", Password = "qweqwe", Email = "admin@example.com", IsAdmin = true },
+                new User { Id = 2, Username = "user", Password = "123456", Email = "user@example.com" }
             );
 
             modelBuilder.Entity<Ingredient>().HasData(
@@ -96,109 +95,7 @@ namespace YP_API.Data
                 new UserFavorite { Id = 3, UserId = 2, RecipeId = 3, AddedAt = DateTime.UtcNow.AddDays(-1) }
             );
 
-            // Seed UserAllergies
-            modelBuilder.Entity<UserAllergy>().HasData(
-                new UserAllergy { Id = 1, UserId = 1, IngredientId = 1 }, // У пользователя 1 аллергия на яйца
-                new UserAllergy { Id = 2, UserId = 2, IngredientId = 2 }  // У пользователя 2 аллергия на молоко
-            );
-
-            modelBuilder.Entity<UserInventory>().HasData(
-                new UserInventory
-                {
-                    Id = 1,
-                    UserId = 1,
-                    IngredientId = 3, // Мука
-                    Quantity = 1000,
-                    Unit = "г",
-                    AddedAt = DateTime.UtcNow.AddDays(-10),
-                    ExpiryDate = DateTime.UtcNow.AddMonths(6)
-                },
-                new UserInventory
-                {
-                    Id = 2,
-                    UserId = 1,
-                    IngredientId = 4, // Сахар
-                    Quantity = 500,
-                    Unit = "г",
-                    AddedAt = DateTime.UtcNow.AddDays(-5),
-                    ExpiryDate = DateTime.UtcNow.AddMonths(12)
-                },
-                new UserInventory
-                {
-                    Id = 3,
-                    UserId = 2,
-                    IngredientId = 8, // Рис
-                    Quantity = 2000,
-                    Unit = "г",
-                    AddedAt = DateTime.UtcNow.AddDays(-15),
-                    ExpiryDate = DateTime.UtcNow.AddMonths(18)
-                }
-            );
-
-            // Seed FridgeItems
-            modelBuilder.Entity<FridgeItem>().HasData(
-                new FridgeItem
-                {
-                    Id = 1,
-                    UserId = 1,
-                    IngredientId = 2, // Молоко
-                    ProductName = "Молоко пастеризованное",
-                    Quantity = 1000,
-                    Unit = "мл"
-                },
-                new FridgeItem
-                {
-                    Id = 2,
-                    UserId = 1,
-                    IngredientId = 14, // Сливочное масло
-                    ProductName = "Масло сливочное 82.5%",
-                    Quantity = 200,
-                    Unit = "г"
-                },
-                new FridgeItem
-                {
-                    Id = 3,
-                    UserId = 2,
-                    IngredientId = 12, // Помидоры
-                    ProductName = "Помидоры черри",
-                    Quantity = 500,
-                    Unit = "г"
-                }
-            );
-
-            // Seed Menus
-            modelBuilder.Entity<Menu>().HasData(
-                new Menu { Id = 1, UserId = 1, Name = "Еженедельное меню", CreatedAt = DateTime.UtcNow },
-                new Menu { Id = 2, UserId = 2, Name = "Диетическое меню", CreatedAt = DateTime.UtcNow.AddDays(-1) }
-            );
-
-            // Seed MenuItems
-            /*modelBuilder.Entity<MenuItem>().HasData(
-                new MenuItem
-                {
-                    Id = 1,
-                    MenuId = 1,
-                    RecipeId = 1,
-                    Date = DateTime.Today,
-                    MealType = "Завтрак"
-                },
-                new MenuItem
-                {
-                    Id = 2,
-                    MenuId = 1,
-                    RecipeId = 2,
-                    Date = DateTime.Today,
-                    MealType = "Обед"
-                },
-                new MenuItem
-                {
-                    Id = 3,
-                    MenuId = 2,
-                    RecipeId = 3,
-                    Date = DateTime.Today.AddDays(1),
-                    MealType = "Ужин"
-                }
-            );*/
+            
 
             // Seed ShoppingLists
             modelBuilder.Entity<ShoppingList>().HasData(
@@ -267,9 +164,7 @@ namespace YP_API.Data
         public DbSet<ShoppingList> ShoppingLists { get; set; }
         public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
         public DbSet<UserFavorite> UserFavorites { get; set; }
-        public DbSet<UserAllergy> UserAllergies { get; set; }
         public DbSet<FridgeItem> FridgeItems { get; set; }
-        public DbSet<UserInventory> UserInventories { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -285,9 +180,7 @@ namespace YP_API.Data
             modelBuilder.Entity<ShoppingList>().ToTable("shopping_lists");
             modelBuilder.Entity<ShoppingListItem>().ToTable("shopping_list_items");
             modelBuilder.Entity<UserFavorite>().ToTable("user_favorites");
-            modelBuilder.Entity<UserAllergy>().ToTable("user_allergies");
             modelBuilder.Entity<FridgeItem>().ToTable("fridge_items");
-            modelBuilder.Entity<UserInventory>().ToTable("user_inventories");
 
             modelBuilder.Entity<User>(entity =>
             {
@@ -321,17 +214,7 @@ namespace YP_API.Data
                 entity.HasIndex(uf => new { uf.UserId, uf.RecipeId }).IsUnique();
             });
 
-            modelBuilder.Entity<UserAllergy>(entity =>
-            {
-                entity.HasKey(ua => ua.Id);
-                entity.HasIndex(ua => new { ua.UserId, ua.IngredientId }).IsUnique();
-            });
 
-            modelBuilder.Entity<UserInventory>(entity =>
-            {
-                entity.HasKey(ui => ui.Id);
-                entity.HasIndex(ui => new { ui.UserId, ui.IngredientId }).IsUnique();
-            });
 
             modelBuilder.Entity<FridgeItem>(entity =>
             {
@@ -343,77 +226,3 @@ namespace YP_API.Data
         }
     }
 }
-
-//using Microsoft.EntityFrameworkCore;
-//using YP_API.Models;
-
-//namespace YP_API.Data
-//{
-//    public class RecipePlannerContext : DbContext
-//    {
-//        public RecipePlannerContext(DbContextOptions<RecipePlannerContext> options) : base(options) { }
-
-//        public DbSet<User> Users { get; set; }
-//        public DbSet<Recipe> Recipes { get; set; }
-//        public DbSet<Ingredient> Ingredients { get; set; }
-//        public DbSet<RecipeIngredient> RecipeIngredients { get; set; }
-//        public DbSet<Menu> Menus { get; set; }
-//        public DbSet<MenuItem> MenuItems { get; set; }
-
-//        public DbSet<ShoppingList> ShoppingLists { get; set; }
-//        public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
-//        public DbSet<UserFavorite> UserFavorites { get; set; }
-//        public DbSet<UserAllergy> UserAllergies { get; set; }
-//        public DbSet<FridgeItem> FridgeItems { get; set; }
-//        public DbSet<UserInventory> UserInventories { get; set; } = null!;
-
-
-//        protected override void OnModelCreating(ModelBuilder modelBuilder)
-//        {
-//            base.OnModelCreating(modelBuilder);
-
-//            // Указываем точные имена таблиц
-//            modelBuilder.Entity<User>().ToTable("users");
-//            modelBuilder.Entity<Recipe>().ToTable("recipes");
-//            modelBuilder.Entity<Ingredient>().ToTable("ingredients");
-//            modelBuilder.Entity<RecipeIngredient>().ToTable("recipe_ingredients");
-//            modelBuilder.Entity<Menu>().ToTable("menus");
-//            modelBuilder.Entity<MenuItem>().ToTable("menu_items");
-//            modelBuilder.Entity<ShoppingList>().ToTable("shopping_lists");
-//            modelBuilder.Entity<ShoppingListItem>().ToTable("shopping_list_items");
-//            modelBuilder.Entity<UserFavorite>().ToTable("user_favorites");
-
-//            modelBuilder.Entity<User>(entity =>
-//            {
-//                entity.HasKey(u => u.Id);
-//                entity.Property(u => u.Username).IsRequired().HasMaxLength(50);
-//                entity.Property(u => u.Password).IsRequired().HasMaxLength(100);
-//                entity.Property(u => u.Email).HasMaxLength(100);
-//                entity.HasIndex(u => u.Username).IsUnique();
-//            });
-
-//            modelBuilder.Entity<Recipe>(entity =>
-//            {
-//                entity.HasKey(r => r.Id);
-//                entity.Property(r => r.Title).IsRequired().HasMaxLength(200);
-//                entity.Property(r => r.Description).HasMaxLength(1000);
-//                entity.Property(r => r.Instructions).HasColumnType("text");
-//                entity.Property(r => r.ImageUrl).HasMaxLength(500);
-//                entity.Property(r => r.Calories).HasPrecision(10, 2);
-//            });
-
-//            modelBuilder.Entity<Ingredient>(entity =>
-//            {
-//                entity.HasKey(i => i.Id);
-//                entity.Property(i => i.Name).IsRequired().HasMaxLength(100);
-//                entity.HasIndex(i => i.Name).IsUnique();
-//            });
-
-//            modelBuilder.Entity<UserFavorite>(entity =>
-//            {
-//                entity.HasKey(uf => uf.Id);
-//                entity.HasIndex(uf => new { uf.UserId, uf.RecipeId }).IsUnique();
-//            });
-//        }
-//    }
-//}

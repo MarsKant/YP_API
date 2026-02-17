@@ -21,7 +21,7 @@ namespace YP_API.Controllers
         [HttpGet("user/{userId}")]
         public async Task<IActionResult> GetFridge(int userId)
         {
-            var inventory = await _context.UserInventories
+            var inventory = await _context.FridgeItems
                 .Include(ui => ui.Ingredient)
                 .Where(ui => ui.UserId == userId)
                 .Select(ui => new
@@ -54,6 +54,7 @@ namespace YP_API.Controllers
                     Name = ingredientDto.Name,
                     Category = ingredientDto.Category ?? "Разное",
                     Unit = ingredientDto.Unit ?? "шт"
+                    
                 };
                 _context.Ingredients.Add(ingredientToUse);
                 await _context.SaveChangesAsync(); // Сохраняем, чтобы получить Id
@@ -65,7 +66,7 @@ namespace YP_API.Controllers
             }
 
             // 4. Теперь проверяем, есть ли этот продукт уже в холодильнике у пользователя
-            var userInventory = await _context.UserInventories
+            var userInventory = await _context.FridgeItems
                 .FirstOrDefaultAsync(ui => ui.UserId == userId && ui.IngredientId == ingredientToUse.Id);
 
             if (userInventory != null)
@@ -76,13 +77,13 @@ namespace YP_API.Controllers
             else
             {
                 // Если нет — добавляем новую запись в холодильник
-                _context.UserInventories.Add(new UserInventory
+                _context.FridgeItems.Add(new FridgeItem
                 {
                     UserId = userId,
+                    ProductName = ingredientToUse.Name,
                     IngredientId = ingredientToUse.Id,
                     Quantity = 1,
-                    Unit = ingredientToUse.Unit,
-                    AddedAt = DateTime.UtcNow
+                    Unit = ingredientToUse.Unit
                 });
             }
 
@@ -90,37 +91,13 @@ namespace YP_API.Controllers
             return Ok(new { success = true });
         }
 
-        [HttpPost("set/{userId}")]
-        public async Task<IActionResult> SetInventory(int userId, [FromBody] List<InventoryItemDto> items)
+        [HttpGet("get/{userId}")]
+        public async Task<IActionResult> GetFridgeItemsByUserId(int userId)
         {
             try
             {
-                var oldInventory = await _context.UserInventories
-                    .Where(ui => ui.UserId == userId)
-                    .ToListAsync();
-                
-                _context.UserInventories.RemoveRange(oldInventory);
-                await _context.SaveChangesAsync();
-
-                foreach (var item in items)
-                {
-                    var ingredient = await _context.Ingredients.FindAsync(item.IngredientId);
-                    if (ingredient == null)
-                    {
-                        return BadRequest(new { error = $"Ингредиент с ID {item.IngredientId} не найден" });
-                    }
-
-                    _context.UserInventories.Add(new UserInventory
-                    {
-                        UserId = userId,
-                        IngredientId = item.IngredientId,
-                        Quantity = item.Quantity,
-                        Unit = item.Unit ?? "шт"
-                    });
-                }
-
-                await _context.SaveChangesAsync();
-                return Ok(new { success = true, message = "Инвентарь обновлен" });
+                List<FridgeItem> fridgeItems = await _context.FridgeItems.Where(x => x.UserId == userId).ToListAsync();
+                return Ok(fridgeItems);
             }
             catch (Exception ex)
             {
@@ -131,12 +108,12 @@ namespace YP_API.Controllers
         [HttpDelete("user/{userId}/ingredient/{ingredientId}")]
         public async Task<IActionResult> RemoveFromFridge(int userId, int ingredientId)
         {
-            var item = await _context.UserInventories
+            var item = await _context.FridgeItems
                 .FirstOrDefaultAsync(ui => ui.UserId == userId && ui.IngredientId == ingredientId);
 
             if (item == null) return NotFound();
 
-            _context.UserInventories.Remove(item);
+            _context.FridgeItems.Remove(item);
             await _context.SaveChangesAsync();
             return Ok(new { success = true });
         }

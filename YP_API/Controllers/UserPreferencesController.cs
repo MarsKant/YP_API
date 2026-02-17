@@ -9,33 +9,10 @@ public class UserPreferencesController : ControllerBase
     private readonly RecipePlannerContext _context;
     public UserPreferencesController(RecipePlannerContext context) => _context = context;
 
-    // POST api/userpreferences/{userId}/allergies
-    [HttpPost("{userId}/allergies")]
-    [HttpPost("user/{userId}/allergies")]
-public async Task<IActionResult> SetAllergies(int userId, [FromBody] int[] ingredientIds)
-{
-    var user = await _context.Users.FindAsync(userId);
-    if (user == null)
-        return NotFound(new { error = "User not found" });
-
-    var existing = _context.UserAllergies.Where(a => a.UserId == userId);
-    _context.UserAllergies.RemoveRange(existing);
-
-    var validIds = ingredientIds
-        .Where(id => id > 0)              // убираем 0
-        .Distinct()
-        .ToList();
-
-    foreach (var id in validIds)
-        _context.UserAllergies.Add(new UserAllergy { UserId = userId, IngredientId = id });
-
-    await _context.SaveChangesAsync();
-    return Ok(new { success = true });
-}
+    
 
 
 
-    // POST api/userpreferences/{userId}/fridge
     [HttpPost("user/{userId}/fridge")]
     public async Task<IActionResult> SetFridge(int userId, [FromBody] List<FridgeItemDto> items)
     {
@@ -46,21 +23,20 @@ public async Task<IActionResult> SetAllergies(int userId, [FromBody] int[] ingre
         if (user == null) return NotFound(new { error = "User not found" });
 
         // Используем UserInventories (совместимо с MenuService и InventoryController)
-        var existing = _context.UserInventories.Where(f => f.UserId == userId);
-        _context.UserInventories.RemoveRange(existing);
+        var existing = _context.FridgeItems.Where(f => f.UserId == userId);
+        _context.FridgeItems.RemoveRange(existing);
 
         var validItems = items
             .Where(i => i.IngredientId > 0) // отсекаем 0 и мусор
             .ToList();
 
         foreach (var item in validItems)
-            _context.UserInventories.Add(new UserInventory
+            _context.FridgeItems.Add(new FridgeItem
             {
                 UserId = userId,
                 IngredientId = item.IngredientId,
                 Quantity = (decimal)item.Quantity,
-                Unit = "шт",
-                AddedAt = DateTime.UtcNow
+                Unit = "шт"
             });
 
         await _context.SaveChangesAsync();

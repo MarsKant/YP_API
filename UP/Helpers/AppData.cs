@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using UP.Models;
+using UP.Pages.Admin;
 using UP.Services;
 
 namespace UP
@@ -28,6 +29,7 @@ namespace UP
 
         public static ObservableCollection<string> ShoppingList { get; } = new ObservableCollection<string>();
         public static ObservableCollection<RecipeDto> Favorites { get; } = new ObservableCollection<RecipeDto>();
+        public static ObservableCollection<UserDto> Users { get; } = new ObservableCollection<UserDto>();
 
         public static ObservableCollection<RecipeDto> AllRecipes { get; } = new ObservableCollection<RecipeDto>();
 
@@ -36,6 +38,8 @@ namespace UP
         public static async Task<bool> InitializeAfterLogin(UserData user)
         {
             CurrentUser = user;
+            if (user.IsAdmin)
+                await LoadUsers();
             return await LoadInitialData();
         }
 
@@ -75,6 +79,19 @@ namespace UP
                 Favorites.Clear();
 
                 foreach (var r in favs) Favorites.Add(r);
+            }
+            catch { }
+        }
+
+        public static async Task LoadUsers()
+        {
+            try
+            {
+                var users = await ApiService.GetUsersAsync();
+                Users.Clear();
+
+
+                foreach (var r in users) Users.Add(r);
             }
             catch { }
         }

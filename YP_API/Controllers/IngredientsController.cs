@@ -45,10 +45,8 @@ namespace YP_API.Controllers
                         var newIngredient = new Ingredient
                         {
                             Name = name.Trim(),
-                            Category = "Прочее",
-                            Unit = "шт",
-                            //StandardUnit = "шт",
-                            Allergens = ""
+                            Category = "Разное",
+                            Unit = "шт"
                         };
 
                         _context.Ingredients.Add(newIngredient);
@@ -138,9 +136,7 @@ namespace YP_API.Controllers
                 {
                     Name = dto.Name.Trim(),
                     Unit = "шт",
-                    Category = "Другое",
-                    //StandardUnit = "шт",
-                    Allergens = ""
+                    Category = existing.Category
                 };
 
                 _context.Ingredients.Add(newIngredient);
@@ -182,5 +178,6 @@ namespace YP_API.Controllers
     public class IngredientDto
     {
         public string Name { get; set; }
+        public string Category { get; set; }
     }
 }

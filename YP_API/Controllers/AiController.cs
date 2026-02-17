@@ -78,8 +78,7 @@ namespace YP_API.Controllers
                                 {
                                     Name = ingName,
                                     Unit = ingDto.Unit,
-                                    Category = "Сгенерировано",
-                                    Allergens = ""
+                                    Category = ingDto.Category
                                 };
                                 _context.Ingredients.Add(ingredientEntity);
                             }

@@ -48,7 +48,6 @@ namespace YP_API.Helpers
                     new Request.Message { role = "user", content = systemPrompt }
                 };
 
-                // Попытки генерации одного дня (Retry Logic)
                 for (int attempt = 1; attempt <= 3; attempt++)
                 {
                     try
@@ -230,7 +229,7 @@ namespace YP_API.Helpers
         ""cookTime"": 15,
         ""instructions"": [""Шаг 1"", ""Шаг 2""],
         ""ingredients"": [
-            {{ ""name"": ""Продукт"", ""quantity"": 100, ""unit"": ""г"" }}
+            {{ ""name"": ""Продукт"", ""quantity"": 100, ""unit"": ""г"", ""Category"": ""Фрукты"" }}
         ]
       }}
     }},
