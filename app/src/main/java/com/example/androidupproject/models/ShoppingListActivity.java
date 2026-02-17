@@ -13,12 +13,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.androidupproject.NavigationHelper; // Импорт
 import com.example.androidupproject.R;
-import com.example.androidupproject.models.ShoppingListDto;
-import com.example.androidupproject.models.ShoppingListItemDto;
-import com.example.androidupproject.models.SessionManager;
 import com.example.androidupproject.network.ApiClient;
 import com.example.androidupproject.network.ApiResponse;
+import com.google.android.material.bottomnavigation.BottomNavigationView; // Импорт
+
 import java.util.ArrayList;
 import java.util.List;
 import retrofit2.Call;
@@ -43,6 +43,11 @@ public class ShoppingListActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new ShopAdapter();
         recyclerView.setAdapter(adapter);
+
+        // --- ДОБАВЛЕНИЕ НАВИГАЦИИ ---
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_shop);
+        // ---------------------------
 
         loadShoppingList();
     }
@@ -87,7 +92,6 @@ public class ShoppingListActivity extends AppCompatActivity {
             holder.tvName.setText(item.name);
             holder.tvQuantity.setText(item.quantity + " " + item.unit);
 
-            // Важно: отключаем слушатель перед изменением состояния, чтобы не триггерить API лишний раз при скролле
             holder.cbPurchased.setOnCheckedChangeListener(null);
             holder.cbPurchased.setChecked(item.isPurchased);
 
@@ -95,15 +99,12 @@ public class ShoppingListActivity extends AppCompatActivity {
                 item.isPurchased = isChecked;
                 ApiClient.getService().toggleShoppingItem(item.id).enqueue(new Callback<ApiResponse<Void>>() {
                     @Override
-                    public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
-                        // Успех, состояние на сервере обновлено
-                    }
+                    public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {}
                     @Override
                     public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                        // Ошибка, возвращаем галочку обратно
                         item.isPurchased = !isChecked;
                         notifyItemChanged(position);
-                        Toast.makeText(ShoppingListActivity.this, "Не удалось обновить", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(ShoppingListActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
                     }
                 });
             });

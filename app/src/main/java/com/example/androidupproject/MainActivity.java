@@ -1,7 +1,6 @@
 package com.example.androidupproject;
 
 import android.annotation.SuppressLint;
-import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,15 +15,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.androidupproject.network.ApiClient;
-import com.example.androidupproject.network.ApiResponse;
 import com.example.androidupproject.models.IngredientDto;
 import com.example.androidupproject.models.SessionManager;
+import com.example.androidupproject.network.ApiClient;
+import com.example.androidupproject.network.ApiResponse;
+import com.google.android.material.bottomnavigation.BottomNavigationView; // Импорт для нижней панели
 
 import java.util.ArrayList;
 import java.util.List;
-import okhttp3.MediaType;
-import okhttp3.RequestBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -40,12 +38,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main); // Предполагается Layout с RecyclerView и EditText
+        setContentView(R.layout.activity_main);
 
         sessionManager = new SessionManager(this);
 
-        // Инициализация UI (упрощенно)
-        // В реальном activity_main.xml добавьте RecyclerView (id: rvProducts), EditText и Button
+        // Инициализация UI
         recyclerView = findViewById(R.id.rvProducts);
         etNewProduct = findViewById(R.id.etNewProduct);
         Button btnAdd = findViewById(R.id.btnAdd);
@@ -54,10 +51,11 @@ public class MainActivity extends AppCompatActivity {
         adapter = new ProductAdapter();
         recyclerView.setAdapter(adapter);
 
-        // В onCreate
-        findViewById(R.id.btnGoToMenu).setOnClickListener(v -> {
-            startActivity(new Intent(MainActivity.this, com.example.androidupproject.models.MenuActivity.class));
-        });
+        // --- 1. НАСТРОЙКА НИЖНЕЙ НАВИГАЦИИ (Вместо старой кнопки btnGoToMenu) ---
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        // Мы используем класс NavigationHelper, который создали ранее
+        NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_fridge);
+        // ------------------------------------------------------------------------
 
         loadFridge();
 
@@ -81,34 +79,23 @@ public class MainActivity extends AppCompatActivity {
 
     private void addProduct() {
         String name = etNewProduct.getText().toString().trim();
-
         if (name.isEmpty()) {
             Toast.makeText(this, "Введите название", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 1. Создаем объект (категория "Разное" проставится сама в конструкторе)
         IngredientDto newProduct = new IngredientDto(name, "шт");
 
-        // 2. Отправляем
         ApiClient.getService().addToFridge(sessionManager.getUserId(), newProduct)
                 .enqueue(new Callback<ApiResponse<Void>>() {
                     @Override
                     public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
                         if (response.isSuccessful()) {
-                            // Успех
                             etNewProduct.setText("");
                             Toast.makeText(MainActivity.this, "Добавлено!", Toast.LENGTH_SHORT).show();
-                            loadFridge(); // Обновляем список, чтобы увидеть новый продукт
+                            loadFridge();
                         } else {
-                            // Обработка ошибки
-                            try {
-                                String errorBody = response.errorBody().string();
-                                System.out.println("ERROR_BODY: " + errorBody); // Смотрите в Logcat
-                                Toast.makeText(MainActivity.this, "Ошибка: " + response.code(), Toast.LENGTH_SHORT).show();
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
+                            Toast.makeText(MainActivity.this, "Ошибка: " + response.code(), Toast.LENGTH_SHORT).show();
                         }
                     }
 
@@ -119,7 +106,6 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    // Внутренний класс адаптера
     // Внутренний класс адаптера
     class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHolder> {
         private List<IngredientDto> items = new ArrayList<>();
@@ -139,13 +125,8 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             IngredientDto item = items.get(position);
-
-            // Теперь поле name точно заполнено (благодаря alternate в DTO)
             holder.tvName.setText(item.name);
-
             holder.btnDelete.setOnClickListener(v -> {
-                // Используем item.id - это именно IngredientId, который прислал сервер
-                System.out.println("DELETING: " + item.name + " ID=" + item.id);
                 deleteProduct(item, item.id);
             });
         }

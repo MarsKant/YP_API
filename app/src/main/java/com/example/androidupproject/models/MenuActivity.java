@@ -13,12 +13,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.androidupproject.NavigationHelper; // Импорт помощника
 import com.example.androidupproject.R;
 import com.example.androidupproject.models.MenuDto;
 import com.example.androidupproject.models.MenuItemDto;
 import com.example.androidupproject.models.SessionManager;
 import com.example.androidupproject.network.ApiClient;
 import com.example.androidupproject.network.ApiResponse;
+import com.google.android.material.bottomnavigation.BottomNavigationView; // Импорт меню
+
 import java.util.ArrayList;
 import java.util.List;
 import retrofit2.Call;
@@ -44,19 +47,47 @@ public class MenuActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.rvMenu);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        loadMenuIntoList(sessionManager.getUserId(), menuItemsList, adapter);
-
-
         adapter = new MenuAdapter();
         recyclerView.setAdapter(adapter);
 
-        findViewById(R.id.btnGenerateShop).setOnClickListener(v -> generateShoppingList());
+        // --- 1. НАСТРОЙКА НИЖНЕЙ НАВИГАЦИИ ---
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_menu);
+        // -------------------------------------
+
+        // --- 2. НАСТРОЙКА КНОПОК ---
+        Button btnGenMenu = findViewById(R.id.btnGenerateMenu);
+        btnGenMenu.setOnClickListener(v -> {
+            Toast.makeText(MenuActivity.this, "Генерируем меню...", Toast.LENGTH_SHORT).show();
+            generateNewMenu();
+        });
+
+        Button btnGenShop = findViewById(R.id.btnGenerateShop);
+        btnGenShop.setOnClickListener(v -> generateShoppingList());
+        // ---------------------------
 
         loadMenu();
     }
-    private void refreshMenu() {
-        loadMenuIntoList(sessionManager.getUserId(), menuItemsList, adapter);
+
+    private void generateNewMenu() {
+        ApiClient.getService().generateMenu(sessionManager.getUserId()).enqueue(new Callback<ApiResponse<Void>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(MenuActivity.this, "Меню готово!", Toast.LENGTH_SHORT).show();
+                    loadMenu(); // Перезагружаем список
+                } else {
+                    Toast.makeText(MenuActivity.this, "Ошибка генерации: " + response.code(), Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                Toast.makeText(MenuActivity.this, "Ошибка сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
+
     private void loadMenu() {
         ApiClient.getService().getCurrentMenu(sessionManager.getUserId()).enqueue(new Callback<ApiResponse<MenuDto>>() {
             @Override
@@ -65,8 +96,9 @@ public class MenuActivity extends AppCompatActivity {
                     MenuDto menu = response.body().data;
                     currentMenuId = menu.id;
                     adapter.setItems(menu.items);
+                    tvMenuTitle.setText(menu.name != null ? menu.name : "Меню");
                 } else {
-                    Toast.makeText(MenuActivity.this, "Меню не найдено. Сгенерируйте новое.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(MenuActivity.this, "Меню нет. Нажмите кнопку генерации.", Toast.LENGTH_LONG).show();
                 }
             }
 
@@ -78,8 +110,10 @@ public class MenuActivity extends AppCompatActivity {
     }
 
     private void generateShoppingList() {
-        if (currentMenuId == 1) return;
-
+        if (currentMenuId == 0) {
+            Toast.makeText(this, "Сначала сгенерируйте меню!", Toast.LENGTH_SHORT).show();
+            return;
+        }
         ApiClient.getService().generateShoppingList(currentMenuId, sessionManager.getUserId()).enqueue(new Callback<ApiResponse<Void>>() {
             @Override
             public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
@@ -91,73 +125,13 @@ public class MenuActivity extends AppCompatActivity {
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {}
         });
     }
-    private void loadMenuIntoList(int userId, final List<MenuItemDto> menuItemsList, final MenuAdapter adapter) {
-        // Очищаем существующие данные
-        if (menuItemsList != null) {
-            menuItemsList.clear();
-        }
 
-        // Выполняем запрос к API
-        ApiClient.getService().getCurrentMenu(userId).enqueue(new Callback<ApiResponse<MenuDto>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<MenuDto>> call, Response<ApiResponse<MenuDto>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().data != null) {
-                    MenuDto menu = response.body().data;
-
-                    // Заполняем локальный список
-                    if (menu.items != null && menuItemsList != null) {
-                        menuItemsList.addAll(menu.items);
-                    }
-
-                    // Обновляем адаптер, если он передан
-                    if (adapter != null) {
-                        adapter.setItems(menu.items != null ? menu.items : new ArrayList<>());
-                    }
-
-                    // Обновляем информацию о меню в UI
-                    runOnUiThread(() -> {
-                        tvMenuTitle.setText(menu.name != null ? menu.name : "Меню на неделю");
-                        Toast.makeText(MenuActivity.this,
-                                "Загружено " + (menu.items != null ? menu.items.size() : 0) + " блюд",
-                                Toast.LENGTH_SHORT).show();
-                    });
-
-                    System.out.println("[loadMenuIntoList] Успешно загружено " +
-                            (menu.items != null ? menu.items.size() : 0) + " элементов меню");
-                } else {
-                    runOnUiThread(() -> {
-                        Toast.makeText(MenuActivity.this,
-                                "Меню не найдено. Сгенерируйте новое.",
-                                Toast.LENGTH_LONG).show();
-                    });
-                    System.out.println("[loadMenuIntoList] Меню не найдено или пустое");
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<MenuDto>> call, Throwable t) {
-                runOnUiThread(() -> {
-                    Toast.makeText(MenuActivity.this,
-                            "Ошибка загрузки меню: " + t.getMessage(),
-                            Toast.LENGTH_SHORT).show();
-                });
-                System.err.println("[loadMenuIntoList] Ошибка сети: " + t.getMessage());
-                t.printStackTrace();
-            }
-        });
-    }
-    // Адаптер
+    // Адаптер (без изменений, но включен для целостности)
     class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder> {
-        // 1. Инициализируем пустым списком сразу, чтобы не было null при старте
         private List<MenuItemDto> items = new ArrayList<>();
 
         public void setItems(List<MenuItemDto> items) {
-            // 2. ЗАЩИТА: Если сервер прислал null, используем пустой список
-            if (items != null) {
-                this.items = items;
-            } else {
-                this.items = new ArrayList<>();
-            }
+            this.items = (items != null) ? items : new ArrayList<>();
             notifyDataSetChanged();
         }
 
@@ -170,13 +144,10 @@ public class MenuActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            // Добавим проверку границ, на всякий случай
             if (items == null || position >= items.size()) return;
-
             MenuItemDto item = items.get(position);
             holder.tvDateMeal.setText(item.date + " (" + item.mealType + ")");
             holder.tvRecipe.setText(item.recipeTitle);
-
             holder.btnOpen.setOnClickListener(v -> {
                 Intent intent = new Intent(MenuActivity.this, com.example.androidupproject.RecipeDetailActivity.class);
                 intent.putExtra("RECIPE_ID", item.recipeId);
@@ -186,7 +157,6 @@ public class MenuActivity extends AppCompatActivity {
 
         @Override
         public int getItemCount() {
-            // 3. ЗАЩИТА: Если список все-таки null, возвращаем 0
             return (items != null) ? items.size() : 0;
         }
 

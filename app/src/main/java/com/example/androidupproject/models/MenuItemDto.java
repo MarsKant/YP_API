@@ -1,17 +1,16 @@
 package com.example.androidupproject.models;
-
 import com.google.gson.annotations.SerializedName;
 
 public class MenuItemDto {
-    @SerializedName("RecipeId")
+    @SerializedName(value = "RecipeId", alternate = {"recipeId"})
     public int recipeId;
 
-    @SerializedName("RecipeTitle")
+    @SerializedName(value = "RecipeTitle", alternate = {"recipeTitle", "title", "Title"})
     public String recipeTitle;
 
-    @SerializedName("Date")
-    public String date; // "yyyy-MM-dd"
+    @SerializedName(value = "Date", alternate = {"date"})
+    public String date;
 
-    @SerializedName("MealType")
-    public String mealType; // "Завтрак", "Обед", "Ужин"
+    @SerializedName(value = "MealType", alternate = {"mealType"})
+    public String mealType;
 }

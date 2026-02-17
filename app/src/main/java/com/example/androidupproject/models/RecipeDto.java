@@ -4,24 +4,24 @@ import com.google.gson.annotations.SerializedName;
 import java.util.List;
 
 public class RecipeDto {
-    @SerializedName("Id")
+    @SerializedName(value = "Id", alternate = {"id"})
     public int id;
 
-    @SerializedName("Title")
+    @SerializedName(value = "Title", alternate = {"title"})
     public String title;
 
-    @SerializedName("Description")
+    @SerializedName(value = "Description", alternate = {"description"})
     public String description;
 
-    @SerializedName("Instructions")
-    public String instructions; // Приходит одной строкой
+    @SerializedName(value = "Instructions", alternate = {"instructions"})
+    public String instructions;
 
-    @SerializedName("ImageUrl")
+    @SerializedName(value = "ImageUrl", alternate = {"imageUrl", "Image", "image"})
     public String imageUrl;
 
-    @SerializedName("Calories")
+    @SerializedName(value = "Calories", alternate = {"calories"})
     public double calories;
 
-    @SerializedName("Ingredients")
+    @SerializedName(value = "Ingredients", alternate = {"ingredients"})
     public List<IngredientDto> ingredients;
 }

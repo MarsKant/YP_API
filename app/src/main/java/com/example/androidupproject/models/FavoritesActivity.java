@@ -14,11 +14,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.androidupproject.NavigationHelper; // Импорт
 import com.example.androidupproject.R;
-import com.example.androidupproject.models.RecipeDto;
-import com.example.androidupproject.models.SessionManager;
 import com.example.androidupproject.network.ApiClient;
 import com.example.androidupproject.network.ApiResponse;
+import com.google.android.material.bottomnavigation.BottomNavigationView; // Импорт
+
 import java.util.ArrayList;
 import java.util.List;
 import retrofit2.Call;
@@ -41,6 +42,11 @@ public class FavoritesActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new FavoritesAdapter();
         recyclerView.setAdapter(adapter);
+
+        // --- ДОБАВЛЕНИЕ НАВИГАЦИИ ---
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_fav);
+        // ---------------------------
 
         loadFavorites();
     }
@@ -81,14 +87,12 @@ public class FavoritesActivity extends AppCompatActivity {
             holder.tvTitle.setText(item.title);
             holder.tvDesc.setText(item.description);
 
-            // Открытие деталей рецепта
             holder.itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(FavoritesActivity.this, com.example.androidupproject.RecipeDetailActivity.class);
                 intent.putExtra("RECIPE_ID", item.id);
                 startActivity(intent);
             });
 
-            // Удаление из избранного
             holder.btnRemove.setOnClickListener(v -> {
                 ApiClient.getService().toggleFavorite(item.id, sessionManager.getUserId()).enqueue(new Callback<ApiResponse<Void>>() {
                     @Override
