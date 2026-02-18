@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -13,12 +14,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.androidupproject.NavigationHelper; // Импорт
+import com.example.androidupproject.NavigationHelper;
 import com.example.androidupproject.R;
 import com.example.androidupproject.network.ApiClient;
 import com.example.androidupproject.network.ApiResponse;
-import com.google.android.material.bottomnavigation.BottomNavigationView; // Импорт
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import retrofit2.Call;
@@ -31,6 +34,7 @@ public class ShoppingListActivity extends AppCompatActivity {
     private ShopAdapter adapter;
     private SessionManager sessionManager;
     private TextView tvTitle;
+    private Button btnSaveToFile;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,14 +44,16 @@ public class ShoppingListActivity extends AppCompatActivity {
         sessionManager = new SessionManager(this);
         tvTitle = findViewById(R.id.tvShopListName);
         recyclerView = findViewById(R.id.rvShoppingList);
+        btnSaveToFile = findViewById(R.id.btnSaveToFile);
+
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new ShopAdapter();
         recyclerView.setAdapter(adapter);
 
-        // --- ДОБАВЛЕНИЕ НАВИГАЦИИ ---
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_shop);
-        // ---------------------------
+
+        btnSaveToFile.setOnClickListener(v -> saveListToFile());
 
         loadShoppingList();
     }
@@ -71,12 +77,44 @@ public class ShoppingListActivity extends AppCompatActivity {
         });
     }
 
+    private void saveListToFile() {
+        List<ShoppingListItemDto> items = adapter.getItems();
+        if (items == null || items.isEmpty()) {
+            Toast.makeText(this, "Нечего сохранять", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("СПИСОК ПОКУПОК\n");
+        sb.append("====================\n");
+
+        for (ShoppingListItemDto item : items) {
+            String mark = item.isPurchased ? "[X] " : "[ ] ";
+            sb.append(mark).append(item.name)
+                    .append(" (").append(item.quantity).append(" ")
+                    .append(item.unit).append(")\n");
+        }
+
+        String fileName = "shopping_list.txt";
+        try (FileOutputStream fos = openFileOutput(fileName, MODE_PRIVATE)) {
+            fos.write(sb.toString().getBytes());
+            Toast.makeText(this, "Сохранено в: " + fileName, Toast.LENGTH_LONG).show();
+        } catch (IOException e) {
+            Toast.makeText(this, "Ошибка записи", Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
+        }
+    }
+
     class ShopAdapter extends RecyclerView.Adapter<ShopAdapter.ViewHolder> {
         private List<ShoppingListItemDto> items = new ArrayList<>();
 
         public void setItems(List<ShoppingListItemDto> items) {
             this.items = items;
             notifyDataSetChanged();
+        }
+
+        public List<ShoppingListItemDto> getItems() {
+            return items;
         }
 
         @NonNull

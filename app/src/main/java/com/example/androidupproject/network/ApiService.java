@@ -5,6 +5,7 @@ import com.example.androidupproject.models.LoginResponse;
 import com.example.androidupproject.models.MenuDto;
 import com.example.androidupproject.models.RecipeDto;
 import com.example.androidupproject.models.ShoppingListDto;
+import com.example.androidupproject.models.ShoppingListItemDto;
 
 import java.util.List;
 import retrofit2.Call;
@@ -75,4 +76,15 @@ public interface ApiService {
 
     @PUT("api/shoppinglist/items/{itemId}/toggle")
     Call<ApiResponse<Void>> toggleShoppingItem(@Path("itemId") int itemId);
+
+    @POST("api/shoppinglist/user/{userId}/add")
+    Call<ApiResponse<Void>> addShoppingItem(
+            @Path("userId") int userId,
+            @Body ShoppingListItemDto item
+    );
+
+    @DELETE("api/shoppinglist/items/{itemId}")
+    Call<ApiResponse<Void>> deleteShoppingItem(@Path("itemId") int itemId);
+
+
 }

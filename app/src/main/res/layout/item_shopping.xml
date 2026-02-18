@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
@@ -11,7 +12,8 @@
     <CheckBox
         android:id="@+id/cbPurchased"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"/>
+        android:layout_height="wrap_content"
+        android:buttonTint="#4CAF50"/>
 
     <TextView
         android:id="@+id/tvItemName"
@@ -20,7 +22,8 @@
         android:layout_weight="1"
         android:text="Продукт"
         android:textColor="#FFFFFF"
-        android:textSize="16sp"/>
+        android:textSize="16sp"
+        android:layout_marginStart="8dp"/>
 
     <TextView
         android:id="@+id/tvItemQuantity"
@@ -28,5 +31,16 @@
         android:layout_height="wrap_content"
         android:text="1 шт"
         android:textColor="#AAAAAA"
-        android:textSize="14sp"/>
+        android:textSize="14sp"
+        android:layout_marginEnd="8dp"/>
+
+    <ImageButton
+        android:id="@+id/btnDeleteShopItem"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@android:drawable/ic_menu_delete"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:padding="8dp"
+        app:tint="#FF4444" />
+
 </LinearLayout>
