@@ -13,15 +13,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.androidupproject.MainActivity;
-import com.example.androidupproject.NavigationHelper; // Импорт помощника
+import com.example.androidupproject.NavigationHelper;
 import com.example.androidupproject.R;
-import com.example.androidupproject.models.MenuDto;
-import com.example.androidupproject.models.MenuItemDto;
-import com.example.androidupproject.models.SessionManager;
 import com.example.androidupproject.network.ApiClient;
 import com.example.androidupproject.network.ApiResponse;
-import com.google.android.material.bottomnavigation.BottomNavigationView; // Импорт меню
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+// Важно: Импортируем RecipeDetailActivity из правильного пакета (теперь models)
+import com.example.androidupproject.models.RecipeDetailActivity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +30,7 @@ import retrofit2.Response;
 public class MenuActivity extends AppCompatActivity {
 
     private List<MenuItemDto> menuItemsList = new ArrayList<>();
-    private  List<IngredientDto> ingredientDtoList = new ArrayList<>();
+    private List<IngredientDto> ingredientDtoList = new ArrayList<>();
     private RecyclerView recyclerView;
     private MenuAdapter adapter;
     private SessionManager sessionManager;
@@ -54,6 +52,7 @@ public class MenuActivity extends AppCompatActivity {
 
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_menu);
+
         Button btnGenMenu = findViewById(R.id.btnGenerateMenu);
         btnGenMenu.setOnClickListener(v -> {
             Toast.makeText(MenuActivity.this, "Генерируем меню...", Toast.LENGTH_SHORT).show();
@@ -64,7 +63,52 @@ public class MenuActivity extends AppCompatActivity {
         Button btnGenShop = findViewById(R.id.btnGenerateShop);
         btnGenShop.setOnClickListener(v -> generateShoppingList());
 
+        // КНОПКА ОЧИСТКИ МЕНЮ
+        Button btnClear = findViewById(R.id.btnClearMenu);
+        btnClear.setOnClickListener(v -> {
+            // Добавляем проверку перед вызовом
+            if (sessionManager.getUserId() == 0) {
+                Toast.makeText(MenuActivity.this, "Ошибка: пользователь не найден", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            clearMenu();
+        });
+
         loadMenu();
+    }
+
+    private void clearMenu() {
+        // 1. Проверяем, загрузилось ли меню и есть ли у нас его ID
+        if (currentMenuId == 0) {
+            Toast.makeText(this, "Меню еще не загружено или отсутствует", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // 2. Выполняем запрос на удаление, используя currentMenuId
+        ApiClient.getService().clearMenu(currentMenuId).enqueue(new Callback<ApiResponse<Void>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
+                // Если удаление прошло успешно (или меню уже не было - 404)
+                if (response.isSuccessful() || response.code() == 404) {
+
+                    // Очищаем интерфейс
+                    adapter.setItems(new ArrayList<>());
+                    tvMenuTitle.setText("Меню удалено");
+
+                    // Сбрасываем ID, так как текущего меню больше нет
+                    currentMenuId = 0;
+
+                    Toast.makeText(MenuActivity.this, "Меню успешно удалено!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MenuActivity.this, "Ошибка сервера: " + response.code(), Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                Toast.makeText(MenuActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void getFridge() {
@@ -76,9 +120,7 @@ public class MenuActivity extends AppCompatActivity {
                 }
             }
             @Override
-            public void onFailure(Call<ApiResponse<List<IngredientDto>>> call, Throwable t) {
-                Toast.makeText(MenuActivity.this, "Ошибка загрузки", Toast.LENGTH_SHORT).show();
-            }
+            public void onFailure(Call<ApiResponse<List<IngredientDto>>> call, Throwable t) {}
         });
     }
 
@@ -93,10 +135,9 @@ public class MenuActivity extends AppCompatActivity {
                     Toast.makeText(MenuActivity.this, "Ошибка генерации: " + response.code(), Toast.LENGTH_SHORT).show();
                 }
             }
-
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                Toast.makeText(MenuActivity.this, "Ошибка сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(MenuActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -111,13 +152,13 @@ public class MenuActivity extends AppCompatActivity {
                     adapter.setItems(menu.items);
                     tvMenuTitle.setText(menu.name != null ? menu.name : "Меню");
                 } else {
-                    Toast.makeText(MenuActivity.this, "Меню нет. Нажмите кнопку генерации.", Toast.LENGTH_LONG).show();
+                    tvMenuTitle.setText("Меню не найдено");
+                    adapter.setItems(new ArrayList<>());
                 }
             }
-
             @Override
             public void onFailure(Call<ApiResponse<MenuDto>> call, Throwable t) {
-                Toast.makeText(MenuActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
+                Toast.makeText(MenuActivity.this, "Ошибка сети при загрузке", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -139,10 +180,8 @@ public class MenuActivity extends AppCompatActivity {
         });
     }
 
-    // Адаптер (без изменений, но включен для целостности)
     class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder> {
         private List<MenuItemDto> items = new ArrayList<>();
-
         public void setItems(List<MenuItemDto> items) {
             this.items = (items != null) ? items : new ArrayList<>();
             notifyDataSetChanged();
@@ -161,17 +200,18 @@ public class MenuActivity extends AppCompatActivity {
             MenuItemDto item = items.get(position);
             holder.tvDateMeal.setText(item.date + " (" + item.mealType + ")");
             holder.tvRecipe.setText(item.recipeTitle);
+
+            // ИСПРАВЛЕНИЕ Intent для перехода к рецепту
             holder.btnOpen.setOnClickListener(v -> {
-                Intent intent = new Intent(MenuActivity.this, com.example.androidupproject.RecipeDetailActivity.class);
+                // Явно указываем класс из пакета models
+                Intent intent = new Intent(holder.itemView.getContext(), com.example.androidupproject.models.RecipeDetailActivity.class);
                 intent.putExtra("RECIPE_ID", item.recipeId);
-                startActivity(intent);
+                holder.itemView.getContext().startActivity(intent);
             });
         }
 
         @Override
-        public int getItemCount() {
-            return (items != null) ? items.size() : 0;
-        }
+        public int getItemCount() { return (items != null) ? items.size() : 0; }
 
         class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvDateMeal, tvRecipe;

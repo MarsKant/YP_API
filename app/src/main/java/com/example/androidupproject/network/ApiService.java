@@ -5,7 +5,6 @@ import com.example.androidupproject.models.LoginResponse;
 import com.example.androidupproject.models.MenuDto;
 import com.example.androidupproject.models.RecipeDto;
 import com.example.androidupproject.models.ShoppingListDto;
-import com.example.androidupproject.models.ShoppingListItemDto;
 
 import java.util.List;
 import retrofit2.Call;
@@ -14,7 +13,6 @@ import retrofit2.http.*;
 public interface ApiService {
 
     // === АВТОРИЗАЦИЯ ===
-
     @FormUrlEncoded
     @POST("api/Auth/login")
     Call<LoginResponse> login(
@@ -31,7 +29,6 @@ public interface ApiService {
     );
 
     // === ХОЛОДИЛЬНИК ===
-
     @GET("api/Ingredients/fridge/{userId}")
     Call<ApiResponse<List<IngredientDto>>> getFridge(@Path("userId") int userId);
 
@@ -48,7 +45,6 @@ public interface ApiService {
     );
 
     // === МЕНЮ И РЕЦЕПТЫ ===
-
     @GET("api/menu/user/{userId}/current")
     Call<ApiResponse<MenuDto>> getCurrentMenu(@Path("userId") int userId);
 
@@ -58,8 +54,10 @@ public interface ApiService {
     @POST("/api/Ai/ask/{userId}")
     Call<ApiResponse<Void>> generateMenu(@Path("userId") int userId, @Body List<IngredientDto> ingredientDtoList);
 
+    // НОВОЕ: Удаление меню
+    @DELETE("api/Menu/{menuId}")
+    Call<ApiResponse<Void>> clearMenu(@Path("menuId") int id);
     // === ИЗБРАННОЕ ===
-
     @GET("api/recipes/favorites/{userId}")
     Call<ApiResponse<List<RecipeDto>>> getFavorites(@Path("userId") int userId);
 
@@ -67,7 +65,6 @@ public interface ApiService {
     Call<ApiResponse<Void>> toggleFavorite(@Path("recipeId") int recipeId, @Path("userId") int userId);
 
     // === СПИСОК ПОКУПОК ===
-
     @POST("api/shoppinglist/generate-from-menu/{menuId}/{userId}")
     Call<ApiResponse<Void>> generateShoppingList(@Path("menuId") int menuId, @Path("userId") int userId);
 
@@ -77,12 +74,7 @@ public interface ApiService {
     @PUT("api/shoppinglist/items/{itemId}/toggle")
     Call<ApiResponse<Void>> toggleShoppingItem(@Path("itemId") int itemId);
 
-    @POST("api/shoppinglist/user/{userId}/add")
-    Call<ApiResponse<Void>> addShoppingItem(
-            @Path("userId") int userId,
-            @Body ShoppingListItemDto item
-    );
-
+    // НОВОЕ: Удаление товара из списка покупок
     @DELETE("api/shoppinglist/items/{itemId}")
     Call<ApiResponse<Void>> deleteShoppingItem(@Path("itemId") int itemId);
 

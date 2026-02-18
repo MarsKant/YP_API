@@ -7,6 +7,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -68,6 +69,7 @@ public class ShoppingListActivity extends AppCompatActivity {
                     adapter.setItems(list.items);
                 } else {
                     tvTitle.setText("Список покупок пуст");
+                    adapter.setItems(new ArrayList<>());
                 }
             }
             @Override
@@ -85,23 +87,18 @@ public class ShoppingListActivity extends AppCompatActivity {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("СПИСОК ПОКУПОК\n");
-        sb.append("====================\n");
-
+        sb.append("СПИСОК ПОКУПОК\n====================\n");
         for (ShoppingListItemDto item : items) {
             String mark = item.isPurchased ? "[X] " : "[ ] ";
-            sb.append(mark).append(item.name)
-                    .append(" (").append(item.quantity).append(" ")
-                    .append(item.unit).append(")\n");
+            sb.append(mark).append(item.name).append(" (").append(item.quantity).append(" ").append(item.unit).append(")\n");
         }
 
         String fileName = "shopping_list.txt";
         try (FileOutputStream fos = openFileOutput(fileName, MODE_PRIVATE)) {
             fos.write(sb.toString().getBytes());
-            Toast.makeText(this, "Сохранено в: " + fileName, Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Сохранено: " + fileName, Toast.LENGTH_LONG).show();
         } catch (IOException e) {
             Toast.makeText(this, "Ошибка записи", Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
         }
     }
 
@@ -113,9 +110,7 @@ public class ShoppingListActivity extends AppCompatActivity {
             notifyDataSetChanged();
         }
 
-        public List<ShoppingListItemDto> getItems() {
-            return items;
-        }
+        public List<ShoppingListItemDto> getItems() { return items; }
 
         @NonNull
         @Override
@@ -132,16 +127,30 @@ public class ShoppingListActivity extends AppCompatActivity {
 
             holder.cbPurchased.setOnCheckedChangeListener(null);
             holder.cbPurchased.setChecked(item.isPurchased);
-
             holder.cbPurchased.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 item.isPurchased = isChecked;
                 ApiClient.getService().toggleShoppingItem(item.id).enqueue(new Callback<ApiResponse<Void>>() {
+                    @Override public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {}
+                    @Override public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {}
+                });
+            });
+
+            // ОБРАБОТКА УДАЛЕНИЯ
+            holder.btnDelete.setOnClickListener(v -> {
+                ApiClient.getService().deleteShoppingItem(item.id).enqueue(new Callback<ApiResponse<Void>>() {
                     @Override
-                    public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {}
+                    public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
+                        if (response.isSuccessful()) {
+                            items.remove(position);
+                            notifyItemRemoved(position);
+                            notifyItemRangeChanged(position, items.size());
+                            Toast.makeText(ShoppingListActivity.this, "Удалено", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(ShoppingListActivity.this, "Ошибка: " + response.code(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
                     @Override
                     public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                        item.isPurchased = !isChecked;
-                        notifyItemChanged(position);
                         Toast.makeText(ShoppingListActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -154,11 +163,14 @@ public class ShoppingListActivity extends AppCompatActivity {
         class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvName, tvQuantity;
             CheckBox cbPurchased;
+            ImageButton btnDelete; // Кнопка удаления
+
             public ViewHolder(@NonNull View itemView) {
                 super(itemView);
                 tvName = itemView.findViewById(R.id.tvItemName);
                 tvQuantity = itemView.findViewById(R.id.tvItemQuantity);
                 cbPurchased = itemView.findViewById(R.id.cbPurchased);
+                btnDelete = itemView.findViewById(R.id.btnDeleteShopItem);
             }
         }
     }

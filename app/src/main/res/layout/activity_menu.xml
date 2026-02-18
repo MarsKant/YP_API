@@ -41,6 +41,15 @@
             android:textColor="#FFFFFF"
             android:layout_marginBottom="8dp"/>
 
+        <Button
+            android:id="@+id/btnClearMenu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="❌ Очистить меню"
+            android:backgroundTint="#D32F2F"
+            android:textColor="#FFFFFF"
+            android:layout_marginBottom="8dp"/>
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvMenu"
             android:layout_width="match_parent"

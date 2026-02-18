@@ -88,7 +88,7 @@ public class FavoritesActivity extends AppCompatActivity {
             holder.tvDesc.setText(item.description);
 
             holder.itemView.setOnClickListener(v -> {
-                Intent intent = new Intent(FavoritesActivity.this, com.example.androidupproject.RecipeDetailActivity.class);
+                Intent intent = new Intent(FavoritesActivity.this, com.example.androidupproject.models.RecipeDetailActivity.class);
                 intent.putExtra("RECIPE_ID", item.id);
                 startActivity(intent);
             });

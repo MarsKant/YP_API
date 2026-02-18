@@ -15,7 +15,7 @@
         android:usesCleartextTraffic="true">
 
         <activity
-            android:name=".LoginActivity"
+            android:name=".models.LoginActivity"
             android:exported="true"
             tools:ignore="MissingClass">
             <intent-filter>
@@ -28,9 +28,9 @@
         <activity android:name=".models.RegisterActivity" />
         <activity android:name=".models.ShoppingListActivity" />
         <activity android:name=".models.FavoritesActivity" />
-
         <activity android:name=".models.MenuActivity" />
-        <activity android:name=".RecipeDetailActivity" />
+
+        <activity android:name=".models.RecipeDetailActivity" />
 
     </application>
 </manifest>
