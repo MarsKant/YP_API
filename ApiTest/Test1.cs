@@ -121,7 +121,7 @@ namespace ApiTest
                 Id = 1,
                 Name = "Мука",
                 Unit = "г",
-                Category = "Бакалея" // Обязательное поле!
+                Category = "Бакалея"
             };
             await _context.Ingredients.AddAsync(flour);
 
@@ -140,14 +140,14 @@ namespace ApiTest
             menu.Items.Add(new MenuItem
             {
                 RecipeId = 1,
-                MealType = "Завтрак", // ИСПРАВЛЕНИЕ: Обязательное поле!
+                MealType = "Завтрак",
                 Date = DateTime.Today
             });
 
             menu.Items.Add(new MenuItem
             {
                 RecipeId = 2,
-                MealType = "Обед",    // ИСПРАВЛЕНИЕ: Обязательное поле!
+                MealType = "Обед",
                 Date = DateTime.Today
             });
 
