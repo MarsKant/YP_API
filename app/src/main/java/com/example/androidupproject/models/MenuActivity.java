@@ -88,7 +88,7 @@ public class MenuActivity extends AppCompatActivity {
             public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
                 if (response.isSuccessful()) {
                     Toast.makeText(MenuActivity.this, "Меню готово!", Toast.LENGTH_SHORT).show();
-                    loadMenu(); // Перезагружаем список
+                    loadMenu();
                 } else {
                     Toast.makeText(MenuActivity.this, "Ошибка генерации: " + response.code(), Toast.LENGTH_SHORT).show();
                 }
