@@ -136,7 +136,7 @@ namespace YP_API.Controllers
                 {
                     Name = dto.Name.Trim(),
                     Unit = "шт",
-                    Category = existing.Category
+                    Category = dto.Category
                 };
 
                 _context.Ingredients.Add(newIngredient);
