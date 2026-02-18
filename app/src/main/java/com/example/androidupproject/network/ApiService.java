@@ -40,7 +40,7 @@ public interface ApiService {
             @Body IngredientDto ingredient
     );
 
-    @DELETE("api/Inventory/remove/{userId}/{ingredientId}")
+    @DELETE("/api/Inventory/user/{userId}/ingredient/{ingredientId}")
     Call<ApiResponse<Void>> removeFromFridge(
             @Path("userId") int userId,
             @Path("ingredientId") int ingredientId
@@ -54,8 +54,8 @@ public interface ApiService {
     @GET("api/recipes/{id}")
     Call<ApiResponse<RecipeDto>> getRecipe(@Path("id") int id);
 
-    @POST("api/menu/generate-week/{userId}")
-    Call<ApiResponse<Void>> generateMenu(@Path("userId") int userId);
+    @POST("/api/Ai/ask/{userId}")
+    Call<ApiResponse<Void>> generateMenu(@Path("userId") int userId, @Body List<IngredientDto> ingredientDtoList);
 
     // === ИЗБРАННОЕ ===
 

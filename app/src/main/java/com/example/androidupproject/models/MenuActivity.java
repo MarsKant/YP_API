@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.androidupproject.MainActivity;
 import com.example.androidupproject.NavigationHelper; // Импорт помощника
 import com.example.androidupproject.R;
 import com.example.androidupproject.models.MenuDto;
@@ -31,6 +32,7 @@ import retrofit2.Response;
 public class MenuActivity extends AppCompatActivity {
 
     private List<MenuItemDto> menuItemsList = new ArrayList<>();
+    private  List<IngredientDto> ingredientDtoList = new ArrayList<>();
     private RecyclerView recyclerView;
     private MenuAdapter adapter;
     private SessionManager sessionManager;
@@ -50,27 +52,38 @@ public class MenuActivity extends AppCompatActivity {
         adapter = new MenuAdapter();
         recyclerView.setAdapter(adapter);
 
-        // --- 1. НАСТРОЙКА НИЖНЕЙ НАВИГАЦИИ ---
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_menu);
-        // -------------------------------------
-
-        // --- 2. НАСТРОЙКА КНОПОК ---
         Button btnGenMenu = findViewById(R.id.btnGenerateMenu);
         btnGenMenu.setOnClickListener(v -> {
             Toast.makeText(MenuActivity.this, "Генерируем меню...", Toast.LENGTH_SHORT).show();
+            getFridge();
             generateNewMenu();
         });
 
         Button btnGenShop = findViewById(R.id.btnGenerateShop);
         btnGenShop.setOnClickListener(v -> generateShoppingList());
-        // ---------------------------
 
         loadMenu();
     }
 
+    private void getFridge() {
+        ApiClient.getService().getFridge(sessionManager.getUserId()).enqueue(new Callback<ApiResponse<List<IngredientDto>>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<List<IngredientDto>>> call, Response<ApiResponse<List<IngredientDto>>> response) {
+                if (response.isSuccessful() && response.body() != null && response.body().data != null) {
+                    ingredientDtoList = response.body().data;
+                }
+            }
+            @Override
+            public void onFailure(Call<ApiResponse<List<IngredientDto>>> call, Throwable t) {
+                Toast.makeText(MenuActivity.this, "Ошибка загрузки", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
     private void generateNewMenu() {
-        ApiClient.getService().generateMenu(sessionManager.getUserId()).enqueue(new Callback<ApiResponse<Void>>() {
+        ApiClient.getService().generateMenu(sessionManager.getUserId(), ingredientDtoList).enqueue(new Callback<ApiResponse<Void>>() {
             @Override
             public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
                 if (response.isSuccessful()) {

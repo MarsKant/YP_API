@@ -42,7 +42,6 @@ public class MainActivity extends AppCompatActivity {
 
         sessionManager = new SessionManager(this);
 
-        // Инициализация UI
         recyclerView = findViewById(R.id.rvProducts);
         etNewProduct = findViewById(R.id.etNewProduct);
         Button btnAdd = findViewById(R.id.btnAdd);
@@ -51,9 +50,7 @@ public class MainActivity extends AppCompatActivity {
         adapter = new ProductAdapter();
         recyclerView.setAdapter(adapter);
 
-        // --- 1. НАСТРОЙКА НИЖНЕЙ НАВИГАЦИИ (Вместо старой кнопки btnGoToMenu) ---
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-        // Мы используем класс NavigationHelper, который создали ранее
         NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_fridge);
         // ------------------------------------------------------------------------
 
@@ -106,7 +103,6 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    // Внутренний класс адаптера
     class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHolder> {
         private List<IngredientDto> items = new ArrayList<>();
 
