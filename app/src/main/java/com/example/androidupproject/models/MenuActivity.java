@@ -18,7 +18,6 @@ import com.example.androidupproject.R;
 import com.example.androidupproject.network.ApiClient;
 import com.example.androidupproject.network.ApiResponse;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-// Важно: Импортируем RecipeDetailActivity из правильного пакета (теперь models)
 import com.example.androidupproject.models.RecipeDetailActivity;
 
 import java.util.ArrayList;
@@ -53,20 +52,21 @@ public class MenuActivity extends AppCompatActivity {
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_menu);
 
+        // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
         Button btnGenMenu = findViewById(R.id.btnGenerateMenu);
         btnGenMenu.setOnClickListener(v -> {
-            Toast.makeText(MenuActivity.this, "Генерируем меню...", Toast.LENGTH_SHORT).show();
-            getFridge();
-            generateNewMenu();
+            Toast.makeText(MenuActivity.this, "Загрузка продуктов и генерация...", Toast.LENGTH_SHORT).show();
+
+            // ВМЕСТО getFridge() и generateNewMenu() вызываем объединенный метод:
+            getFridgeAndGenerate();
         });
+        // -------------------------
 
         Button btnGenShop = findViewById(R.id.btnGenerateShop);
         btnGenShop.setOnClickListener(v -> generateShoppingList());
 
-        // КНОПКА ОЧИСТКИ МЕНЮ
         Button btnClear = findViewById(R.id.btnClearMenu);
         btnClear.setOnClickListener(v -> {
-            // Добавляем проверку перед вызовом
             if (sessionManager.getUserId() == 0) {
                 Toast.makeText(MenuActivity.this, "Ошибка: пользователь не найден", Toast.LENGTH_SHORT).show();
                 return;
@@ -77,50 +77,29 @@ public class MenuActivity extends AppCompatActivity {
         loadMenu();
     }
 
-    private void clearMenu() {
-        // 1. Проверяем, загрузилось ли меню и есть ли у нас его ID
-        if (currentMenuId == 0) {
-            Toast.makeText(this, "Меню еще не загружено или отсутствует", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // 2. Выполняем запрос на удаление, используя currentMenuId
-        ApiClient.getService().clearMenu(currentMenuId).enqueue(new Callback<ApiResponse<Void>>() {
-            @Override
-            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
-                // Если удаление прошло успешно (или меню уже не было - 404)
-                if (response.isSuccessful() || response.code() == 404) {
-
-                    // Очищаем интерфейс
-                    adapter.setItems(new ArrayList<>());
-                    tvMenuTitle.setText("Меню удалено");
-
-                    // Сбрасываем ID, так как текущего меню больше нет
-                    currentMenuId = 0;
-
-                    Toast.makeText(MenuActivity.this, "Меню успешно удалено!", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(MenuActivity.this, "Ошибка сервера: " + response.code(), Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                Toast.makeText(MenuActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void getFridge() {
+    // Этот метод теперь используется и работает правильно (последовательно)
+    private void getFridgeAndGenerate() {
         ApiClient.getService().getFridge(sessionManager.getUserId()).enqueue(new Callback<ApiResponse<List<IngredientDto>>>() {
             @Override
             public void onResponse(Call<ApiResponse<List<IngredientDto>>> call, Response<ApiResponse<List<IngredientDto>>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().data != null) {
                     ingredientDtoList = response.body().data;
+
+                    // Проверка: если холодильник пуст, предупреждаем, но пробуем генерировать
+                    if (ingredientDtoList.isEmpty()) {
+                        Toast.makeText(MenuActivity.this, "Холодильник пуст, генерируем случайное меню...", Toast.LENGTH_SHORT).show();
+                    }
+
+                    // Данные получены, ТЕПЕРЬ вызываем генерацию
+                    generateNewMenu();
+                } else {
+                    Toast.makeText(MenuActivity.this, "Не удалось загрузить продукты", Toast.LENGTH_SHORT).show();
                 }
             }
             @Override
-            public void onFailure(Call<ApiResponse<List<IngredientDto>>> call, Throwable t) {}
+            public void onFailure(Call<ApiResponse<List<IngredientDto>>> call, Throwable t) {
+                Toast.makeText(MenuActivity.this, "Ошибка сети при загрузке продуктов", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
@@ -132,9 +111,40 @@ public class MenuActivity extends AppCompatActivity {
                     Toast.makeText(MenuActivity.this, "Меню готово!", Toast.LENGTH_SHORT).show();
                     loadMenu();
                 } else {
-                    Toast.makeText(MenuActivity.this, "Ошибка генерации: " + response.code(), Toast.LENGTH_SHORT).show();
+                    // Код 502 придет сюда
+                    Toast.makeText(MenuActivity.this, "Ошибка сервера: " + response.code(), Toast.LENGTH_LONG).show();
                 }
             }
+            @Override
+            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                // Если сработал тайм-аут (долгое ожидание)
+                Toast.makeText(MenuActivity.this, "ИИ думает слишком долго (Timeout)", Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    // Метод getFridge() удален, так как он больше не нужен (дублирует логику)
+
+    private void clearMenu() {
+        if (currentMenuId == 0) {
+            Toast.makeText(this, "Меню еще не загружено или отсутствует", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Убедитесь, что в ApiService метод называется clearMenu (или deleteMenu, как мы обсуждали ранее)
+        ApiClient.getService().clearMenu(currentMenuId).enqueue(new Callback<ApiResponse<Void>>() {
+            @Override
+            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
+                if (response.isSuccessful() || response.code() == 404) {
+                    adapter.setItems(new ArrayList<>());
+                    tvMenuTitle.setText("Меню удалено");
+                    currentMenuId = 0;
+                    Toast.makeText(MenuActivity.this, "Меню успешно удалено!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MenuActivity.this, "Ошибка удаления: " + response.code(), Toast.LENGTH_SHORT).show();
+                }
+            }
+
             @Override
             public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
                 Toast.makeText(MenuActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
@@ -201,9 +211,7 @@ public class MenuActivity extends AppCompatActivity {
             holder.tvDateMeal.setText(item.date + " (" + item.mealType + ")");
             holder.tvRecipe.setText(item.recipeTitle);
 
-            // ИСПРАВЛЕНИЕ Intent для перехода к рецепту
             holder.btnOpen.setOnClickListener(v -> {
-                // Явно указываем класс из пакета models
                 Intent intent = new Intent(holder.itemView.getContext(), com.example.androidupproject.models.RecipeDetailActivity.class);
                 intent.putExtra("RECIPE_ID", item.recipeId);
                 holder.itemView.getContext().startActivity(intent);
