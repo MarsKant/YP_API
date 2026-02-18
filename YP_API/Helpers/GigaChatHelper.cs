@@ -52,15 +52,11 @@ namespace YP_API.Helpers
                 {
                     try
                     {
-                        // 1. Всегда получаем актуальный токен
                         string token = await GetToken();
-
-                        // 2. Делаем запрос
                         var response = await GetAnswer(token, messages);
 
                         if (response?.choices?.Count > 0)
                         {
-                            // 3. Чистим и парсим JSON
                             string rawContent = response.choices[0].message.content;
                             string json = CleanJson(rawContent);
 
@@ -68,28 +64,26 @@ namespace YP_API.Helpers
 
                             if (dayMenu?.Items != null && dayMenu.Items.Any())
                             {
-                                // Присваиваем номер дня для надежности
                                 foreach (var item in dayMenu.Items) item.DayNumber = i;
 
                                 finalMenu.Items.AddRange(dayMenu.Items);
                                 daySuccess = true;
-                                break; // Успех, выходим из цикла попыток
+                                break; 
                             }
                         }
 
-                        Console.WriteLine($"⚠️ Попытка {attempt} для дня {i} не удалась (пустой ответ или неверный формат).");
-                        await Task.Delay(1000); // Пауза перед повтором
+                        Console.WriteLine($"Попытка {attempt} для дня {i} не удалась (пустой ответ или неверный формат).");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"❌ Ошибка генерации дня {i} (Попытка {attempt}): {ex.Message}");
+                        Console.WriteLine($"Ошибка генерации дня {i} (Попытка {attempt}): {ex.Message}");
                         await Task.Delay(2000);
                     }
                 }
 
                 if (!daySuccess)
                 {
-                    Console.WriteLine($"⛔ Не удалось сгенерировать меню для дня {i} после 3 попыток.");
+                    Console.WriteLine($"Не удалось сгенерировать меню для дня {i} после 3 попыток.");
                 }
             }
 
@@ -109,7 +103,7 @@ namespace YP_API.Helpers
                 stream = false,
                 repetition_penalty = 1,
                 messages = messages,
-                temperature = 0.7 // Добавили креативности
+                temperature = 0.85
             };
 
             var jsonContent = JsonConvert.SerializeObject(requestData);
@@ -127,7 +121,7 @@ namespace YP_API.Helpers
             if (!response.IsSuccessStatusCode)
             {
                 string errorBody = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"❌ API Error ({response.StatusCode}): {errorBody}");
+                Console.WriteLine($"API Error ({response.StatusCode}): {errorBody}");
                 return null;
             }
 
@@ -190,11 +184,8 @@ namespace YP_API.Helpers
         private static string CleanJson(string json)
         {
             if (string.IsNullOrEmpty(json)) return "";
-
-            // Убираем маркдаун
             json = json.Replace("```json", "").Replace("```", "").Trim();
 
-            // Находим границы JSON (на случай, если модель написала вступление)
             int firstBrace = json.IndexOf('{');
             int lastBrace = json.LastIndexOf('}');
 
@@ -212,8 +203,7 @@ namespace YP_API.Helpers
 
             return $@"
 Ты — профессиональный шеф-повар. Составь меню на ДЕНЬ №{dayNumber}.
-ОБЯЗАТЕЛЬНО используй некоторые из этих продуктов: {ingredientsString}.
-
+ОБЯЗАТЕЛЬНО используй эти продукты: {ingredientsString}.
 ВЕРНИ ТОЛЬКО JSON (валидный, без Markdown).
 Формат:
 {{
@@ -229,7 +219,7 @@ namespace YP_API.Helpers
         ""cookTime"": 15,
         ""instructions"": [""Шаг 1"", ""Шаг 2""],
         ""ingredients"": [
-            {{ ""name"": ""Продукт"", ""quantity"": 100, ""unit"": ""г"", ""Category"": ""Фрукты"" }}
+            {{""name"": ""Продукт"", ""quantity"": 100, ""unit"": ""г"", ""сategory"": ""Фрукты"" }}
         ]
       }}
     }},
