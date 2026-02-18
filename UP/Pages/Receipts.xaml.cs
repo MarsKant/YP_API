@@ -136,63 +136,31 @@ namespace UP.Pages
         {
             try
             {
-                var menuDetails = await AppData.ApiService.GetMenuDetailsAsync(menuId);
+                ShoppingListInfo.Text = "Генерация списка...";
+                var success = await AppData.ApiService.GenerateShoppingListAsync(menuId);
 
-                if (menuDetails == null || menuDetails.Days == null)
+                if (success)
                 {
-                    ShoppingListInfo.Text = "Меню не содержит рецептов";
-                    _shoppingList.Clear();
-                    return;
-                }
+                    var shopingList = await AppData.ApiService.GetCurrentShoppingListAsync();
 
-                var recipeIds = new List<int>();
-                foreach (var day in menuDetails.Days)
+                    await AppData.ApiService.SetIngredientsPrice(shopingList);
+                    
+                    await AppData.LoadShoppingList();
+
+                    ShoppingListInfo.Text = $"Загружено {_shoppingList.Count} товаров";
+                    ToastContainer.ShowToast("Список покупок готов!", Elements.ToastType.Success);
+                }
+                else
                 {
-                    recipeIds.AddRange(day.Meals.Select(m => m.RecipeId));
+                    ShoppingListInfo.Text = "Ошибка генерации";
+                    ToastContainer.ShowToast("Не удалось сгенерировать список покупок", Elements.ToastType.Error);
                 }
-                recipeIds = recipeIds.Distinct().ToList();
-
-                _shoppingList.Clear();
-                var ingredientDict = new Dictionary<string, ShoppingListItemDto>();
-
-                foreach (var recipeId in recipeIds)
-                {
-                    try
-                    {
-                        var recipe = await AppData.ApiService.GetRecipeAsync(recipeId);
-                        if (recipe == null || recipe.Ingredients == null) continue;
-
-                        foreach (var ingredient in recipe.Ingredients)
-                        {
-                            if (ingredient == null || string.IsNullOrWhiteSpace(ingredient.Name)) continue;
-
-                            var key = ingredient.Name.ToLower();
-                            if (!ingredientDict.ContainsKey(key))
-                            {
-                                ingredientDict[key] = new ShoppingListItemDto
-                                {
-                                    Name = ingredient.Name,
-                                    Quantity = ingredient.Quantity,
-                                    Unit = ingredient.Unit ?? "шт",
-                                    IsPurchased = false
-                                };
-                            }
-                        }
-                    }
-                    catch { }
-                }
-
-                foreach (var item in ingredientDict.Values.OrderBy(x => x.Name))
-                {
-                    _shoppingList.Add(item);
-                }
-
-                ShoppingListInfo.Text = $"Загружено {_shoppingList.Count} товаров";
             }
             catch (Exception ex)
             {
-                ShoppingListInfo.Text = "Ошибка при генерации списка покупок";
-                ToastContainer.ShowToast("Не удалось сгенерировать список покупок: " + ex.Message, Elements.ToastType.Error);
+                ShoppingListInfo.Text = "Ошибка при генерации";
+                ToastContainer.ShowToast("Ошибка: " + ex.Message, Elements.ToastType.Error);
+                Console.WriteLine($"GenerateShoppingList error: {ex}");
             }
         }
 

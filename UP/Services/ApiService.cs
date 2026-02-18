@@ -106,7 +106,6 @@ namespace UP.Services
                 bool success = responseObj?.success ?? false;
                 if (!success) throw new Exception(responseObj?.message?.ToString() ?? "Ошибка регистрации");
 
-                // Обычно после регистрации сразу логинимся или возвращаем UserData
                 return new UserData { Username = username, Email = email };
             }
             catch (Exception ex)
@@ -525,6 +524,20 @@ namespace UP.Services
                 }
             }
             return menuDto;
+        }
+
+        public async Task SetIngredientsPrice(ShoppingListDto shoppingListItem)
+        {
+            try
+            {
+                /// Получить список покупок из shoppingListItem ///
+                
+                var jsonIngredients = JsonConvert.SerializeObject(shoppingListItem.Items);
+                var content = new StringContent(jsonIngredients, Encoding.UTF8, "application/json");
+
+                var response = await _httpClient.PostAsync($"/api/PriceParser/parse", content);
+            }
+            catch (Exception ex) {}
         }
 
 

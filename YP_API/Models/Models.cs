@@ -53,6 +53,7 @@ namespace YP_API.Models
         public string Name { get; set; }
         public string Category { get; set; }
         public string Unit { get; set; }
+        public int? Quanity { get; set; }
     }
 
     public class RecipeIngredient
@@ -107,6 +108,7 @@ namespace YP_API.Models
         public string Name { get; set; }
         public decimal Quantity { get; set; }
         public string Unit { get; set; }
+        public decimal? Price { get; set; }
         public bool IsPurchased { get; set; }
 
         public ShoppingList ShoppingList { get; set; }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using YP_API.Data;
+using YP_API.Interfaces;
 using YP_API.Models;
 
 namespace YP_API.Controllers
@@ -16,13 +17,11 @@ namespace YP_API.Controllers
             _context = context;
         }
 
-        // СОЗДАТЬ список покупок из меню
         [HttpPost("generate-from-menu/{menuId}/{userId}")]
         public async Task<ActionResult> GenerateFromMenu(int menuId, int userId)
         {
             try
             {
-                // Находим меню с рецептами и их ингредиентами
                 var menu = await _context.Menus
                     .Include(m => m.Items)
                         .ThenInclude(i => i.Recipe)
@@ -31,16 +30,13 @@ namespace YP_API.Controllers
                 if (menu == null)
                     return NotFound(new { error = "Меню не найдено" });
 
-                // Получаем все RecipeId из меню
                 var recipeIds = menu.Items.Select(i => i.RecipeId).ToList();
 
-                // Получаем все ингредиенты для этих рецептов
                 var recipeIngredients = await _context.RecipeIngredients
                     .Include(ri => ri.Ingredient)
                     .Where(ri => recipeIds.Contains(ri.RecipeId))
                     .ToListAsync();
 
-                // Создаем список покупок
                 var shoppingList = new ShoppingList
                 {
                     UserId = userId,
@@ -48,7 +44,6 @@ namespace YP_API.Controllers
                     CreatedAt = DateTime.UtcNow
                 };
 
-                // Группируем ингредиенты
                 var ingredientGroups = recipeIngredients
                     .GroupBy(ri => ri.IngredientId)
                     .Select(g => new
@@ -64,9 +59,12 @@ namespace YP_API.Controllers
                         Name = group.Ingredient.Name,
                         Quantity = group.TotalQuantity,
                         Unit = group.Ingredient.Unit,
-                        IsPurchased = false
+                        IsPurchased = false,
+                        Price = 0
                     });
                 }
+
+
 
                 await _context.ShoppingLists.AddAsync(shoppingList);
                 await _context.SaveChangesAsync();
@@ -85,7 +83,6 @@ namespace YP_API.Controllers
             }
         }
 
-        // ПОЛУЧИТЬ текущий список покупок пользователя
         [HttpGet("user/{userId}/current")]
         public async Task<ActionResult> GetCurrentShoppingList(int userId)
         {
@@ -130,7 +127,6 @@ namespace YP_API.Controllers
             }
         }
 
-        // ОТМЕТИТЬ товар как купленный
         [HttpPut("items/{itemId}/toggle")]
         public async Task<ActionResult> ToggleItemPurchased(int itemId)
         {

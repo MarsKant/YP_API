@@ -1,14 +1,9 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Linq;
+﻿using Microsoft.EntityFrameworkCore;
+using YP_API.Controllers;
 using YP_API.Data;
 using YP_API.Models;
-using YP_API.Services;
 using YP_API.Repositories;
-using YP_API.Controllers;
+using YP_API.Services;
 
 namespace ApiTest
 {

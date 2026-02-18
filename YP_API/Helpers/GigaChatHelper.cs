@@ -4,33 +4,29 @@ using System.Net.Http.Headers;
 using YP_API.Models;
 using YP_API.Models.AIAPI;
 using static YP_API.Models.AIAPI.Responce.ResponceMenu;
-// Убедитесь, что подключены нужные пространства имен для ваших DTO
 
 namespace YP_API.Helpers
 {
     public static class GigaChatHelper
     {
-        // ВАШИ КЛЮЧИ
         public static string ClientId = "019bca1f-0f50-72b2-b33b-7fb5c3b89be6";
         public static string AuthorizationKey = "MDE5YmNhMWYtMGY1MC03MmIyLWIzM2ItN2ZiNWMzYjg5YmU2OjE2NjQxYWQ0LWVhMjctNDYzYi1hYjRmLTRjZTI4ZDU1NTVkOA==";
 
-        // ЕДИНЫЙ HttpClient для всего приложения (Critical Fix)
         private static readonly HttpClient _httpClient = new HttpClient(new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
         })
         {
-            Timeout = TimeSpan.FromMinutes(2) // Увеличиваем тайм-аут для AI
+            Timeout = TimeSpan.FromMinutes(5)
         };
 
-        // Кеш токена
         private static string _cachedToken = "";
         private static DateTime _tokenExpiry = DateTime.MinValue;
 
         /// <summary>
         /// Основной метод генерации меню с повторными попытками
         /// </summary>
-        public static async Task<GeneratedMenuDto?> GenerateAndParseMenuAsync(string? ignoredToken, List<Ingredient> ingredients, int daysCount)
+        public static async Task<GeneratedMenuDto?> GenerateAndParseMenuAsync(List<Ingredient> ingredients, int daysCount)
         {
             var finalMenu = new GeneratedMenuDto
             {
@@ -77,7 +73,7 @@ namespace YP_API.Helpers
                     catch (Exception ex)
                     {
                         Console.WriteLine($"Ошибка генерации дня {i} (Попытка {attempt}): {ex.Message}");
-                        await Task.Delay(2000);
+                        await Task.Delay(1500);
                     }
                 }
 
@@ -99,11 +95,11 @@ namespace YP_API.Helpers
 
             var requestData = new
             {
-                model = "GigaChat", // Или GigaChat:latest
+                model = "GigaChat",
                 stream = false,
                 repetition_penalty = 1,
                 messages = messages,
-                temperature = 0.85
+                temperature = 0.65
             };
 
             var jsonContent = JsonConvert.SerializeObject(requestData);
@@ -140,7 +136,7 @@ namespace YP_API.Helpers
             }
 
             string url = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth";
-            string rqUid = Guid.NewGuid().ToString(); // Уникальный ID запроса
+            string rqUid = Guid.NewGuid().ToString(); 
 
             using var request = new HttpRequestMessage(HttpMethod.Post, url);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -164,12 +160,10 @@ namespace YP_API.Helpers
                 }
 
                 string responseString = await response.Content.ReadAsStringAsync();
-
-                // Используем dynamic для простоты парсинга токена, или создайте класс TokenDto
                 var tokenData = JsonConvert.DeserializeObject<dynamic>(responseString);
 
                 _cachedToken = tokenData.access_token;
-                long expiresAt = tokenData.expires_at; // Unix timestamp в миллисекундах
+                long expiresAt = tokenData.expires_at;
                 _tokenExpiry = DateTimeOffset.FromUnixTimeMilliseconds(expiresAt).UtcDateTime;
 
                 return _cachedToken;

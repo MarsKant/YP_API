@@ -27,8 +27,7 @@ namespace YP_API.Controllers
 
             try
             {
-                var token = await GigaChatHelper.GetToken();
-                var generatedMenu = await GigaChatHelper.GenerateAndParseMenuAsync(token, Ingredients, 1);
+                var generatedMenu = await GigaChatHelper.GenerateAndParseMenuAsync(Ingredients, 1);
 
                 if (generatedMenu == null) return StatusCode(502, "Ошибка генерации меню.");
 
@@ -81,6 +80,8 @@ namespace YP_API.Controllers
                                     Category = ingDto.Category
                                 };
                                 _context.Ingredients.Add(ingredientEntity);
+
+
                             }
                             localIngredientCache[ingKey] = ingredientEntity;
                         }
@@ -139,7 +140,7 @@ namespace YP_API.Controllers
                     return StatusCode(500, "Ошибка получения токена (Token is null)");
                 }
 
-                var generatedMenu = await GigaChatHelper.GenerateAndParseMenuAsync(token, mockIngredients, 1);
+                var generatedMenu = await GigaChatHelper.GenerateAndParseMenuAsync(mockIngredients, 1);
 
                 if (generatedMenu == null)
                 {

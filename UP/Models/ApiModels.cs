@@ -91,7 +91,7 @@ namespace UP.Models
     {
         public int Id { get; set; }
         public string Name { get; set; }
-        public decimal Quantity { get; set; }
+        public decimal? Quantity { get; set; }
         public string Unit { get; set; }
         public string Category { get; set; }
     }
@@ -126,6 +126,7 @@ namespace UP.Models
         public int Id { get; set; }
         public string Name { get; set; }
         public bool IsCompleted { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public List<ShoppingListItemDto> Items { get; set; } = new List<ShoppingListItemDto>();
     }
 
@@ -133,9 +134,9 @@ namespace UP.Models
     {
         public int Id { get; set; }
         public string Name { get; set; }
-        public decimal Quantity { get; set; }
+        public decimal? Quantity { get; set; }
         public string Unit { get; set; }
-        public string Category { get; set; }
+        public decimal? Price { get; set; }
         public bool IsPurchased { get; set; }
     }
 

@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using YP_API.Data;
 using YP_API.Interfaces;
 
 namespace YP_API.Controllers
@@ -8,10 +10,12 @@ namespace YP_API.Controllers
     public class PriceParserController : ControllerBase
     {
         private readonly IPriceParserService _priceParserService;
+        RecipePlannerContext _context;
 
-        public PriceParserController(IPriceParserService priceParserService)
+        public PriceParserController(IPriceParserService priceParserService, RecipePlannerContext context)
         {
             _priceParserService = priceParserService;
+            _context = context;
         }
 
         /// <summary>
@@ -25,16 +29,22 @@ namespace YP_API.Controllers
         /// -2: Сайт недоступен
         /// -3: Ошибка парсинга / изменена структура страницы
         /// </returns>
-        [HttpGet("parse")]
+        [HttpPost("parse")]
         public async Task<ActionResult<double>> ParsePrice(
-            [FromQuery] string productName,
+            [FromBody] List<IngredientDto> ingredients,
             [FromQuery] string volume = null)
         {
-            if (string.IsNullOrWhiteSpace(productName))
-                return BadRequest("Название продукта обязательно для заполнения");
+            if (ingredients.Count == 0)
+                return BadRequest("Нет продуктов");
 
-            double price = await _priceParserService.ParsePriceAsync(productName, volume);
-            return Ok(price);
+            foreach (var ingredient in ingredients)
+            {
+                double price = await _priceParserService.ParsePriceAsync(ingredient.Name, volume);
+                await _context.ShoppingListItems.FirstOrDefaultAsync(x => x.Name == ingredient.Name);
+            }
+            await _context.SaveChangesAsync();
+            
+            return Ok();
         }
     }
 }
