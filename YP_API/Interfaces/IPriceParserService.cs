@@ -1,7 +1,9 @@
-﻿namespace YP_API.Interfaces
+﻿using YP_API.Controllers;
+
+namespace YP_API.Interfaces
 {
     public interface IPriceParserService
     {
-        Task<double> ParsePriceAsync(string productName, string? volume = null);
+        Task<bool> ParsePriceAsync(List<IngredientDto> ingredients);
     }
 }

@@ -84,7 +84,6 @@ namespace YP_API.Controllers
                     CreatedAt = DateTime.UtcNow
                 };
 
-                // Копируем блюда из выбранного меню
                 foreach (var item in menu.Items)
                 {
                     userMenu.Items.Add(new MenuItem

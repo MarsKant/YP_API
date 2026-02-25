@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using YP_API.Data;
 using YP_API.Interfaces;
+using YP_API.Models;
 
 namespace YP_API.Controllers
 {
@@ -37,13 +38,13 @@ namespace YP_API.Controllers
             if (ingredients.Count == 0)
                 return BadRequest("Нет продуктов");
 
-            foreach (var ingredient in ingredients)
+            bool isUpdated = await _priceParserService.ParsePriceAsync(ingredients);
+
+            if (!isUpdated)
             {
-                double price = await _priceParserService.ParsePriceAsync(ingredient.Name, volume);
-                await _context.ShoppingListItems.FirstOrDefaultAsync(x => x.Name == ingredient.Name);
+                return NotFound("Не удалось найти цены для указанных товаров.");
             }
-            await _context.SaveChangesAsync();
-            
+
             return Ok();
         }
     }

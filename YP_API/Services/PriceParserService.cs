@@ -1,5 +1,8 @@
-﻿using Microsoft.Playwright;
-using System.Text.RegularExpressions;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Playwright;
+using System.Text.Json;
+using YP_API.Controllers;
+using YP_API.Data;
 using YP_API.Interfaces;
 
 namespace YP_API.Services
@@ -8,102 +11,82 @@ namespace YP_API.Services
     {
         private readonly IBrowser _browser;
         private readonly ILogger<PriceParserService> _logger;
+        private readonly RecipePlannerContext _context;
 
-        public PriceParserService(IBrowser browser, ILogger<PriceParserService> logger)
+        public PriceParserService(IBrowser browser, ILogger<PriceParserService> logger, RecipePlannerContext context)
         {
             _browser = browser;
             _logger = logger;
+            _context = context;
         }
 
-        public async Task<double> ParsePriceAsync(string productName, string? volume = null)
+        public async Task<bool> ParsePriceAsync(List<IngredientDto> ingredients)
         {
-            if (string.IsNullOrWhiteSpace(productName)) return -1;
+            if (!ingredients.Any()) return false;
 
-            // Используем качественный User-Agent и настройки контекста
+            int updatedCount = 0;
             var context = await _browser.NewContextAsync(new BrowserNewContextOptions
             {
-                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+                UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
                 ViewportSize = new ViewportSize { Width = 1366, Height = 768 },
-                DeviceScaleFactor = 1
+                Locale = "ru-RU"
             });
 
             var page = await context.NewPageAsync();
+            var random = new Random();
 
             try
             {
-                string searchUrl = $"https://5ka.ru/search/?text={Uri.EscapeDataString(productName + (volume != null ? " " + volume : ""))}";
-                _logger.LogInformation($"[Playwright] Переход по URL: {searchUrl}");
-
-                // Переходим на страницу с имитацией поведения человека
-                await page.GotoAsync(searchUrl, new PageGotoOptions { WaitUntil = WaitUntilState.Load, Timeout = 30000 });
-
-                // Небольшая задержка, чтобы контент успел отрендериться (защита от ботов любит быстрые переходы)
-                await page.WaitForTimeoutAsync(1500);
-
-                // Закрываем модалку города, если она есть
-                try
+                foreach (var ingredient in ingredients)
                 {
-                    var cityBtn = page.GetByRole(AriaRole.Button, new() { Name = "Да" });
-                    if (await cityBtn.IsVisibleAsync()) await cityBtn.ClickAsync();
-                }
-                catch { }
+                    string searchUrl = $"https://www.vprok.ru/catalog/search?text={Uri.EscapeDataString(ingredient.Name)}";
 
-                var cardLocator = page.Locator("article, a[href*='/product/'], [class*='product-card']");
+                    await page.GotoAsync(searchUrl, new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+                    await page.WaitForTimeoutAsync(random.Next(2000, 4000));
 
-                try
-                {
-                    await cardLocator.First.WaitForAsync(new() { State = WaitForSelectorState.Visible, Timeout = 10000 });
-                }
-                catch (Exception)
-                {
-                    _logger.LogWarning($"[Playwright] Товары не найдены на странице для: {productName}");
-                    return -1;
-                }
+                    var jsonData = await page.EvaluateAsync<string>(@"() => {
+                        const script = document.querySelector('#__NEXT_DATA__');
+                        return script ? script.textContent : null;
+                        }");
 
-                var cards = await cardLocator.AllAsync();
-
-                foreach (var card in cards)
-                {
-                    try
+                    if (string.IsNullOrEmpty(jsonData))
                     {
-                        var text = await card.InnerTextAsync();
-                        if (string.IsNullOrWhiteSpace(text)) continue;
+                        _logger.LogWarning($"__NEXT_DATA__ не найден для: {ingredient.Name}");
+                        continue;
+                    }
 
-                        if (!text.Contains(productName, StringComparison.OrdinalIgnoreCase)) continue;
+                    using var jsonDoc = JsonDocument.Parse(jsonData);
+                    var root = jsonDoc.RootElement;
 
-                        if (!string.IsNullOrEmpty(volume))
+                    var products = ExtractProductsFromJson(root, ingredient.Name);
+
+                    if (products.Any())
+                    {
+                        var dbItem = await _context.Ingredients
+                            .FirstOrDefaultAsync(x => x.Name == ingredient.Name);
+
+                        if (dbItem != null)
                         {
-                            if (!IsVolumeMatch(text, volume))
-                            {
-                                continue;
-                            }
-                        }
-
-                        // Логика извлечения цены
-                        string cleanText = text.Replace("?", "").Replace("₽", "").Replace("\n", " ").Trim();
-                        var matches = Regex.Matches(cleanText, @"(\d{1,})\s*(\d{2})"); // Поиск целых и копеек
-
-                        if (matches.Count > 0)
-                        {
-                            var lastMatch = matches.Cast<Match>().Last();
-                            string priceStr = $"{lastMatch.Groups[1].Value}.{lastMatch.Groups[2].Value}";
-
-                            if (double.TryParse(priceStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double price))
-                            {
-                                _logger.LogInformation($"[MATCH] Найдено: {productName} - {price} руб.");
-                                return price;
-                            }
+                            dbItem.Price = products.First().Price;
+                            _logger.LogInformation($"Обновлено: {ingredient.Name} = {products.First().Price} руб.");
+                            updatedCount++;
                         }
                     }
-                    catch { continue; }
+                    else
+                    {
+                        _logger.LogWarning($"Товар не найден: {ingredient.Name}");
+                    }
+
+                    await page.WaitForTimeoutAsync(random.Next(1000, 2000));
                 }
 
-                return -1;
+                if (updatedCount > 0) await _context.SaveChangesAsync();
+                return updatedCount > 0;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"[Playwright] Ошибка парсинга: {ex.Message}");
-                return -1;
+                _logger.LogError($"Ошибка парсинга: {ex.Message}\n{ex.StackTrace}");
+                return false;
             }
             finally
             {
@@ -112,27 +95,61 @@ namespace YP_API.Services
             }
         }
 
-        private bool IsVolumeMatch(string text, string requestedVolume)
+        private List<ProductInfo> ExtractProductsFromJson(JsonElement root, string ingredientName)
         {
-            var reqMatch = Regex.Match(requestedVolume.ToLower(), @"(\d+[,.]?\d*)\s*(мл|л|г|кг|ml|l|g|kg)");
-            if (!reqMatch.Success) return text.Contains(requestedVolume, StringComparison.OrdinalIgnoreCase);
+            var products = new List<ProductInfo>();
 
-            double reqValue = double.Parse(reqMatch.Groups[1].Value.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
-            string reqUnit = reqMatch.Groups[2].Value;
-
-            if (reqUnit == "л" || reqUnit == "l" || reqUnit == "кг" || reqUnit == "kg") reqValue *= 1000;
-
-            var textMatches = Regex.Matches(text.ToLower(), @"(\d+[,.]?\d*)\s*(мл|л|г|кг|ml|l|g|kg)");
-            foreach (Match m in textMatches)
+            try
             {
-                double val = double.Parse(m.Groups[1].Value.Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
-                string unit = m.Groups[2].Value;
+                if (!root.TryGetProperty("props", out var props)) return products;
+                if (!props.TryGetProperty("pageProps", out var pageProps)) return products;
+                if (!pageProps.TryGetProperty("initialStore", out var initialStore)) return products;
+                if (!initialStore.TryGetProperty("searchPage", out var searchPage)) return products;
+                if (!searchPage.TryGetProperty("products", out var productsArray)) return products;
 
-                if (unit == "л" || unit == "l" || unit == "кг" || unit == "kg") val *= 1000;
-                if (Math.Abs(val - reqValue) < (reqValue * 0.01)) return true;
+                foreach (var product in productsArray.EnumerateArray())
+                {
+                    if (!product.TryGetProperty("name", out var nameElement)) continue;
+                    string productName = nameElement.GetString() ?? "";
+
+                    if (!IsNameMatch(productName, ingredientName)) continue;
+
+                    decimal price = 0;
+                    if (product.TryGetProperty("price", out var priceElement))
+                    {
+                        if (priceElement.ValueKind == JsonValueKind.Number)
+                            price = (decimal)priceElement.GetDouble();
+                        else if (priceElement.ValueKind == JsonValueKind.String)
+                            decimal.TryParse(priceElement.GetString(), out price);
+                    }
+
+                    if (price > 0)
+                    {
+                        products.Add(new ProductInfo { Name = productName, Price = price });
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Ошибка парсинга JSON: {ex.Message}");
             }
 
-            return false;
+            return products;
+        }
+
+        private bool IsNameMatch(string productName, string ingredientName)
+        {
+            var productWords = productName.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var ingredientWords = ingredientName.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            return ingredientWords.All(w => productWords.Any(pw => pw.Contains(w)));
+        }
+
+        private class ProductInfo
+        {
+            public string Name { get; set; } = "";
+            public decimal Price { get; set; }
         }
     }
 }

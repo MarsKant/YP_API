@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Playwright;
 using YP_API.Data;
+using YP_API.Interfaces;
 using YP_API.Models;
+using YP_API.Services;
 
 namespace YP_API.Controllers
 {
@@ -10,10 +13,20 @@ namespace YP_API.Controllers
     public class IngredientsController : ControllerBase
     {
         private readonly RecipePlannerContext _context;
+        private readonly IPriceParserService _priceParserService;
+        private readonly ILogger<IngredientsController> _logger;
+        private readonly IServiceProvider _serviceProvider;
 
-        public IngredientsController(RecipePlannerContext context)
+        public IngredientsController(
+            RecipePlannerContext context, 
+            IPriceParserService priceParserService, 
+            ILogger<IngredientsController> logger,
+            IServiceProvider serviceProvider)
         {
             _context = context;
+            _priceParserService = priceParserService;
+            _logger = logger;
+            _serviceProvider = serviceProvider;
         }
 
         [HttpGet("search")]
@@ -28,17 +41,17 @@ namespace YP_API.Controllers
                 if (!string.IsNullOrWhiteSpace(queryText))
                 {
                     var lower = queryText.ToLower();
-                    query = query.Where(i => i.Name.ToLower().Contains(lower));
+                    query = query.Where(i => i.Name.Contains(lower, StringComparison.CurrentCultureIgnoreCase));
                 }
 
                 var ingredients = await query
                     .Take(50)
                     .ToListAsync();
 
-                if (!ingredients.Any() && !string.IsNullOrWhiteSpace(name))
+                if (ingredients.Count == 0 && !string.IsNullOrWhiteSpace(name))
                 {
                     var existing = await _context.Ingredients
-                        .FirstOrDefaultAsync(i => i.Name.ToLower() == name.Trim().ToLower());
+                        .FirstOrDefaultAsync(i => i.Name.Equals(name.Trim(), StringComparison.CurrentCultureIgnoreCase));
 
                     if (existing == null)
                     {
@@ -78,75 +91,100 @@ namespace YP_API.Controllers
             }
         }
 
-        [HttpGet("fridge/{userId}")]
-        public async Task<ActionResult> GetFridgeItemsByUserId(int userId)
+        [HttpPost("create")]
+        public async Task<IActionResult> CreateIngredients([FromBody] List<IngredientDto> dtos)
         {
             try
             {
-                var fridgeItems = await _context.FridgeItems
-                    .Where(fi => fi.UserId == userId)
-                    .Include(fi => fi.Ingredient)
-                    .ToListAsync();
+                if (dtos == null || !dtos.Any())
+                    return BadRequest(new { success = false, error = "Список ингредиентов пуст" });
 
-                if (!fridgeItems.Any())
+                var created = new List<object>();
+                var skipped = new List<object>();
+                var errors = new List<object>();
+
+                foreach (var dto in dtos)
                 {
-                    return Ok(new
+                    try
                     {
-                        success = true,
-                        data = new object[0]
-                    });
+                        if (string.IsNullOrWhiteSpace(dto.Name))
+                        {
+                            errors.Add(new { name = dto.Name, error = "Имя не может быть пустым" });
+                            continue;
+                        }
+
+                        var existing = await _context.Ingredients
+                            .FirstOrDefaultAsync(i => i.Name.Equals(dto.Name.Trim(), StringComparison.CurrentCultureIgnoreCase));
+
+                        if (existing != null)
+                        {
+                            skipped.Add(new { Id = existing.Id, Name = existing.Name, reason = "Уже существует" });
+                            continue;
+                        }
+
+                        var newIngredient = new Ingredient
+                        {
+                            Name = dto.Name.Trim(),
+                            Unit = dto.Unit ?? "шт",
+                            Category = dto.Category ?? "Разное",
+                            Price = null
+                        };
+
+                        _context.Ingredients.Add(newIngredient);
+                        created.Add(new { Id = newIngredient.Id, Name = newIngredient.Name });
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add(new { name = dto.Name, error = ex.Message });
+                    }
                 }
 
-                var result = fridgeItems.Select(fi => new
+                await _context.SaveChangesAsync();
+
+                if (created.Any())
                 {
-                    Id = fi.IngredientId,
-                    Name = fi.ProductName,       
-                    Category = fi.Ingredient?.Category ?? "Неизвестно",
-                    Unit = fi.Unit,
-                    Quantity = fi.Quantity
-                }).ToList();
+                    var newIngredients = dtos
+                        .Where(d => !string.IsNullOrWhiteSpace(d.Name))
+                        .Select(d => new IngredientDto { Name = d.Name.Trim(), Category = d.Category, Unit = d.Unit})
+                        .ToList();
+
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            using var scope = _serviceProvider.CreateScope();
+                            var scopedParser = scope.ServiceProvider.GetRequiredService<IPriceParserService>();
+                            await scopedParser.ParsePriceAsync(newIngredients);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Ошибка парсинга цен при создании ингредиентов");
+                        }
+                    });
+                }
 
                 return Ok(new
                 {
                     success = true,
-                    data = result
+                    data = new
+                    {
+                        created = created,
+                        skipped = skipped,
+                        errors = errors,
+                        summary = new
+                        {
+                            total = dtos.Count,
+                            createdCount = created.Count,
+                            skippedCount = skipped.Count,
+                            errorCount = errors.Count
+                        }
+                    }
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = ex.Message });
-            }
-        }
-
-        [HttpPost("create")]
-        public async Task<IActionResult> CreateIngredient([FromBody] IngredientDto dto)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(dto.Name))
-                    return BadRequest(new { success = false, error = "Имя не может быть пустым" });
-
-                var existing = await _context.Ingredients
-                    .FirstOrDefaultAsync(i => i.Name.ToLower() == dto.Name.Trim().ToLower());
-
-                if (existing != null)
-                    return Ok(new { success = true, data = new { existing.Id, existing.Name } });
-
-                var newIngredient = new Ingredient
-                {
-                    Name = dto.Name.Trim(),
-                    Unit = "шт",
-                    Category = dto.Category
-                };
-
-                _context.Ingredients.Add(newIngredient);
-                await _context.SaveChangesAsync();
-
-                return Ok(new { success = true, data = new { newIngredient.Id, newIngredient.Name } });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { success = false, error = ex.Message });
+                _logger.LogError(ex, "Ошибка при массовом создании ингредиентов");
+                return StatusCode(500, new { success = false, error = ex.Message });
             }
         }
 
@@ -179,5 +217,6 @@ namespace YP_API.Controllers
     {
         public string Name { get; set; }
         public string Category { get; set; }
+        public string Unit {  get; set; }
     }
 }

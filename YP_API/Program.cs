@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Microsoft.Playwright;
+using Pomelo.EntityFrameworkCore.MySql.Internal;
 using System.Net;
 using YP_API.Data;
 using YP_API.Interfaces;
@@ -44,7 +45,10 @@ var connectionString = "Server=127.0.0.1;Port=3306;Database=recipe_planner;Uid=r
 
 builder.Services.AddDbContext<RecipePlannerContext>(options =>
 {
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
+    options.UseMySql
+    (connectionString, 
+    ServerVersion.AutoDetect(connectionString),
+    mySqlOptionsAction => mySqlOptionsAction.EnableStringComparisonTranslations());
 });
 
 builder.Services.AddScoped<IRecipeRepository, RecipeRepository>();
@@ -56,21 +60,20 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IPovarScraperService, PovarScraperService>();
 builder.Services.AddScoped<IImageGenerationService, ImageGenerationService>();
 
-// НАСТРОЙКА СКРЫТОГО БРАУЗЕРА
 builder.Services.AddSingleton<IPlaywright>(sp => Playwright.CreateAsync().GetAwaiter().GetResult());
 builder.Services.AddSingleton<IBrowser>(sp => {
     var playwright = sp.GetRequiredService<IPlaywright>();
     return playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
     {
-        Headless = false, // Обязательно false для обхода защиты
+        Headless = false, 
         Args = new[] {
-            "--disable-blink-features=AutomationControlled", // Скрывает флаг автоматизации
+            "--disable-blink-features=AutomationControlled",
             "--no-sandbox",
-            "--window-position=-2000,-2000", // Уводит окно за пределы экрана
-            "--window-size=10,10",           // Делает окно крошечным
+            "--window-position=-2000,-2000", 
+            "--window-size=10,10",          
             "--no-first-run",
             "--no-default-browser-check",
-            "--mute-audio"                   // На всякий случай выключаем звук
+            "--mute-audio"                  
         }
     }).GetAwaiter().GetResult();
 });
