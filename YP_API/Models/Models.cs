@@ -15,9 +15,7 @@ namespace YP_API.Models
         public int Id { get; set; }
         public int UserId { get; set; }
         public int IngredientId { get; set; }
-        public string ProductName { get; set; } = null!;
         public decimal Quantity { get; set; }
-        public string Unit { get; set; } = null!;
         public User User { get; set; } = null!;
         public Ingredient Ingredient { get; set; } = null!;
     }
@@ -52,7 +50,6 @@ namespace YP_API.Models
         public string Name { get; set; }
         public string Category { get; set; }
         public string Unit { get; set; }
-        public int? Quanity { get; set; }
         public decimal? Price {  get; set; }
     }
 
@@ -105,12 +102,10 @@ namespace YP_API.Models
     {
         public int Id { get; set; }
         public int ShoppingListId { get; set; }
-        public string Name { get; set; }
+        public int IngredientId { get; set; }
         public decimal Quantity { get; set; }
-        public string Unit { get; set; }
-        public decimal? Price { get; set; }
         public bool IsPurchased { get; set; }
-
+        public Ingredient Ingredient { get; set; }
         public ShoppingList ShoppingList { get; set; }
     }
 

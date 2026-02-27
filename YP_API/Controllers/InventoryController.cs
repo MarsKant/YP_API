@@ -39,10 +39,11 @@ namespace YP_API.Controllers
 
                 var result = fridgeItems.Select(fi => new
                 {
-                    Id = fi.IngredientId,
-                    Name = fi.ProductName,
+                    Id = fi.Id,
+                    IngredientId = fi.IngredientId,
+                    Name = fi.Ingredient?.Name,
                     Category = fi.Ingredient?.Category ?? "Неизвестно",
-                    Unit = fi.Unit,
+                    Unit = fi.Ingredient?.Unit,
                     Quantity = fi.Quantity
                 }).ToList();
 
@@ -59,7 +60,7 @@ namespace YP_API.Controllers
         }
 
         [HttpPost("FridgeItem/add/{userId}")]
-        public async Task<IActionResult> AddFridgeItem(int userId, [FromBody] Ingredient ingredientDto)
+        public async Task<IActionResult> AddFridgeItem(int userId, [FromBody] Ingredient ingredientDto, decimal Quantity)
         {
             var existingIngredient = await _context.Ingredients
                 .FirstOrDefaultAsync(i => i.Name.Equals(ingredientDto.Name, StringComparison.CurrentCultureIgnoreCase));
@@ -73,7 +74,6 @@ namespace YP_API.Controllers
                     Name = ingredientDto.Name,
                     Category = ingredientDto.Category ?? "Разное",
                     Unit = ingredientDto.Unit ?? "шт"
-                    
                 };
                 _context.Ingredients.Add(ingredientToUse);
                 await _context.SaveChangesAsync(); 
@@ -95,10 +95,9 @@ namespace YP_API.Controllers
                 _context.FridgeItems.Add(new FridgeItem
                 {
                     UserId = userId,
-                    ProductName = ingredientToUse.Name,
                     IngredientId = ingredientToUse.Id,
-                    Quantity = 1,
-                    Unit = ingredientToUse.Unit
+                    Quantity = Quantity,
+                    Ingredient = ingredientToUse
                 });
             }
 

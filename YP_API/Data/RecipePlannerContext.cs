@@ -73,7 +73,6 @@ namespace YP_API.Data
                 new RecipeIngredient { Id = 5, RecipeId = 1, IngredientId = 10, Quantity = 50 }, // Лук
                 new RecipeIngredient { Id = 6, RecipeId = 1, IngredientId = 12, Quantity = 100 }, // Помидоры
 
-                // Курица с рисом
                 new RecipeIngredient { Id = 7, RecipeId = 2, IngredientId = 7, Quantity = 300 }, // Куриная грудка
                 new RecipeIngredient { Id = 8, RecipeId = 2, IngredientId = 8, Quantity = 200 }, // Рис
                 new RecipeIngredient { Id = 9, RecipeId = 2, IngredientId = 10, Quantity = 100 }, // Лук
@@ -81,23 +80,18 @@ namespace YP_API.Data
                 new RecipeIngredient { Id = 11, RecipeId = 2, IngredientId = 13, Quantity = 30 }, // Оливковое масло
                 new RecipeIngredient { Id = 12, RecipeId = 2, IngredientId = 5, Quantity = 10 }, // Соль
 
-                // Картофельное пюре
                 new RecipeIngredient { Id = 13, RecipeId = 3, IngredientId = 9, Quantity = 500 }, // Картофель
                 new RecipeIngredient { Id = 14, RecipeId = 3, IngredientId = 2, Quantity = 100 }, // Молоко
                 new RecipeIngredient { Id = 15, RecipeId = 3, IngredientId = 14, Quantity = 50 }, // Сливочное масло
                 new RecipeIngredient { Id = 16, RecipeId = 3, IngredientId = 5, Quantity = 10 } // Соль
             );
 
-            // Seed UserFavorites
             modelBuilder.Entity<UserFavorite>().HasData(
                 new UserFavorite { Id = 1, UserId = 1, RecipeId = 1, AddedAt = DateTime.UtcNow.AddDays(-5) },
                 new UserFavorite { Id = 2, UserId = 1, RecipeId = 2, AddedAt = DateTime.UtcNow.AddDays(-3) },
                 new UserFavorite { Id = 3, UserId = 2, RecipeId = 3, AddedAt = DateTime.UtcNow.AddDays(-1) }
             );
 
-            
-
-            // Seed ShoppingLists
             modelBuilder.Entity<ShoppingList>().HasData(
                 new ShoppingList
                 {
@@ -114,37 +108,6 @@ namespace YP_API.Data
                     Name = "Для ужина",
                     IsCompleted = true,
                     CreatedAt = DateTime.UtcNow.AddDays(-2)
-                }
-            );
-
-            // Seed ShoppingListItems
-            modelBuilder.Entity<ShoppingListItem>().HasData(
-                new ShoppingListItem
-                {
-                    Id = 1,
-                    ShoppingListId = 1,
-                    Name = "Хлеб",
-                    Quantity = 1,
-                    Unit = "шт",
-                    IsPurchased = false
-                },
-                new ShoppingListItem
-                {
-                    Id = 2,
-                    ShoppingListId = 1,
-                    Name = "Яблоки",
-                    Quantity = 1000,
-                    Unit = "г",
-                    IsPurchased = true
-                },
-                new ShoppingListItem
-                {
-                    Id = 3,
-                    ShoppingListId = 2,
-                    Name = "Сыр",
-                    Quantity = 300,
-                    Unit = "г",
-                    IsPurchased = true
                 }
             );
         }

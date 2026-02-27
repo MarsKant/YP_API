@@ -25,42 +25,6 @@ namespace YP_API.Controllers
             _context = context;
         }
 
-        //[HttpGet("available")]
-        //public async Task<ActionResult> GetAvailableMenus()
-        //{
-        //    try
-        //    {
-        //        var menus = await _context.Menus
-        //            .Include(m => m.Items)
-        //                .ThenInclude(i => i.Recipe)
-        //            .Select(m => new
-        //            {
-        //                Id = m.Id,
-        //                Name = m.Name,
-        //                CreatedAt = m.CreatedAt,
-        //                TotalDays = m.Items.Select(i => i.Date.Date).Distinct().Count(),
-        //                Recipes = m.Items.Select(i => new
-        //                {
-        //                    Id = i.RecipeId,
-        //                    Title = i.Recipe.Title,
-        //                    Date = i.Date.ToString("yyyy-MM-dd"),
-        //                    MealType = i.MealType
-        //                })
-        //            })
-        //            .ToListAsync();
-
-        //        return Ok(new
-        //        {
-        //            success = true,
-        //            data = menus
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { error = ex.Message });
-        //    }
-        //}
-
         [HttpPost("{menuId}/select/{userId}")]
         public async Task<ActionResult> SelectMenu(int menuId, int userId)
         {

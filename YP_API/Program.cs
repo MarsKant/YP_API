@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Microsoft.Playwright;
-using Pomelo.EntityFrameworkCore.MySql.Internal;
-using System.Net;
 using YP_API.Data;
 using YP_API.Interfaces;
 using YP_API.Repositories;
@@ -60,25 +58,52 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<IPovarScraperService, PovarScraperService>();
 builder.Services.AddScoped<IImageGenerationService, ImageGenerationService>();
 
+builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IPlaywright>(sp => Playwright.CreateAsync().GetAwaiter().GetResult());
-builder.Services.AddSingleton<IBrowser>(sp => {
+builder.Services.AddSingleton<IBrowser>(sp =>
+{
     var playwright = sp.GetRequiredService<IPlaywright>();
     return playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
     {
-        Headless = false, 
+        Headless = false,
         Args = new[] {
             "--disable-blink-features=AutomationControlled",
+            "--disable-dev-shm-usage",
             "--no-sandbox",
-            "--window-position=-2000,-2000", 
-            "--window-size=10,10",          
             "--no-first-run",
             "--no-default-browser-check",
-            "--mute-audio"                  
+            "--mute-audio"
         }
     }).GetAwaiter().GetResult();
 });
 
 builder.Services.AddScoped<IPriceParserService, PriceParserService>();
+
+//builder.Services.AddSingleton<IPlaywright>(sp =>
+//{
+//    return Playwright.CreateAsync().GetAwaiter().GetResult();
+//});
+//builder.Services.AddSingleton<IBrowser>(sp =>
+//{
+//    var playwright = sp.GetRequiredService<IPlaywright>();
+
+//    return playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+//    {
+//        Headless = false,
+//        Channel = "chrome", 
+//        Args = new[]
+//        {
+//            "--disable-blink-features=AutomationControlled",
+//            "--disable-dev-shm-usage",
+//            "--no-sandbox",
+//            "--no-first-run",
+//            "--no-default-browser-check",
+//            "--mute-audio",
+//        }
+//    }).GetAwaiter().GetResult();
+//});
+//builder.Services.AddScoped<IPriceParserService, PriceParserService>();
+//builder.Services.AddSingleton<BuildIdCache>();
 
 var app = builder.Build();
 
