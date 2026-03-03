@@ -65,7 +65,7 @@ builder.Services.AddSingleton<IBrowser>(sp =>
     var playwright = sp.GetRequiredService<IPlaywright>();
     return playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
     {
-        Headless = false,
+        Headless = true,
         Args = new[] {
             "--disable-blink-features=AutomationControlled",
             "--disable-dev-shm-usage",

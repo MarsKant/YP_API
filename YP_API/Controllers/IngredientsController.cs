@@ -53,24 +53,7 @@ namespace YP_API.Controllers
                     var existing = await _context.Ingredients
                         .FirstOrDefaultAsync(i => i.Name.Equals(name.Trim(), StringComparison.CurrentCultureIgnoreCase));
 
-                    if (existing == null)
-                    {
-                        var newIngredient = new Ingredient
-                        {
-                            Name = name.Trim(),
-                            Category = "Разное",
-                            Unit = "шт"
-                        };
-
-                        _context.Ingredients.Add(newIngredient);
-                        await _context.SaveChangesAsync();
-
-                        ingredients.Add(newIngredient);
-                    }
-                    else
-                    {
-                        ingredients.Add(existing);
-                    }
+                    ingredients.Add(existing);
                 }
 
                 return Ok(new
@@ -84,6 +67,38 @@ namespace YP_API.Controllers
                         Unit = i.Unit
                     })
                 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet("get")]
+        public async Task<ActionResult> GetIngredientByName([FromQuery] string? name)
+        {
+            try
+            {
+                var lower = name.ToLower();
+
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    return BadRequest();
+                }
+
+                var ingredient = await _context.Ingredients
+                    .FirstOrDefaultAsync(
+                    x => x.Name == lower);
+
+                if (ingredient != null)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        data = ingredient
+                    });
+                }
+                return NotFound();
             }
             catch (Exception ex)
             {

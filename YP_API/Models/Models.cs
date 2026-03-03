@@ -15,7 +15,7 @@ namespace YP_API.Models
         public int Id { get; set; }
         public int UserId { get; set; }
         public int IngredientId { get; set; }
-        public decimal Quantity { get; set; }
+        public decimal? Quantity { get; set; }
         public User User { get; set; } = null!;
         public Ingredient Ingredient { get; set; } = null!;
     }

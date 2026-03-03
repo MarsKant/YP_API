@@ -60,44 +60,34 @@ namespace YP_API.Controllers
         }
 
         [HttpPost("FridgeItem/add/{userId}")]
-        public async Task<IActionResult> AddFridgeItem(int userId, [FromBody] Ingredient ingredientDto, decimal Quantity)
+        public async Task<IActionResult> AddFridgeItem(int userId, int ingredientId, decimal? Quantity)
         {
             var existingIngredient = await _context.Ingredients
-                .FirstOrDefaultAsync(i => i.Name.Equals(ingredientDto.Name, StringComparison.CurrentCultureIgnoreCase));
+                .FirstOrDefaultAsync(i => i.Id == ingredientId);
 
             Ingredient ingredientToUse;
 
+            
             if (existingIngredient == null)
             {
-                ingredientToUse = new Ingredient
-                {
-                    Name = ingredientDto.Name,
-                    Category = ingredientDto.Category ?? "Разное",
-                    Unit = ingredientDto.Unit ?? "шт"
-                };
-                _context.Ingredients.Add(ingredientToUse);
-                await _context.SaveChangesAsync(); 
-            }
-            else
-            {
-                ingredientToUse = existingIngredient;
+                return BadRequest();
             }
 
             var userInventory = await _context.FridgeItems
-                .FirstOrDefaultAsync(ui => ui.UserId == userId && ui.IngredientId == ingredientToUse.Id);
+                .FirstOrDefaultAsync(ui => ui.UserId == userId && ui.IngredientId == existingIngredient.Id);
 
             if (userInventory != null)
             {
-                userInventory.Quantity += 1;
+                userInventory.Quantity += Quantity ?? 1;
             }
             else
             {
                 _context.FridgeItems.Add(new FridgeItem
                 {
                     UserId = userId,
-                    IngredientId = ingredientToUse.Id,
+                    IngredientId = existingIngredient.Id,
                     Quantity = Quantity,
-                    Ingredient = ingredientToUse
+                    Ingredient = existingIngredient
                 });
             }
 
