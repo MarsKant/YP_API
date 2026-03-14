@@ -176,4 +176,28 @@ public class ShoppingListController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+    [HttpDelete("items/{itemId}")]
+    public async Task<ActionResult> DeleteShoppingItem(int itemId)
+    {
+        try
+        {
+            var item = await _context.ShoppingListItems.FindAsync(itemId);
+
+            if (item == null)
+                return NotFound(new { error = "Товар не найден в списке" });
+
+            _context.ShoppingListItems.Remove(item);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                message = "Товар успешно удален из списка"
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
 }
