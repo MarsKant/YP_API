@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit;
 import okhttp3.OkHttpClient;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
+import okhttp3.logging.HttpLoggingInterceptor;
 
 public class ApiClient {
     // Убедитесь, что IP адрес верный (для эмулятора 10.0.2.2)
@@ -12,16 +13,20 @@ public class ApiClient {
 
     public static ApiService getService() {
         if (retrofit == null) {
-            // Настройка тайм-аутов для долгой генерации ИИ
+            // Создаем перехватчик логов
+            HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
+            logging.setLevel(HttpLoggingInterceptor.Level.BODY); // Видеть заголовки и тело JSON
+
             OkHttpClient okHttpClient = new OkHttpClient.Builder()
-                    .connectTimeout(60, TimeUnit.SECONDS) // 1 минута на соединение
-                    .readTimeout(180, TimeUnit.SECONDS)   // 3 минуты на ожидание ответа (ИИ)
+                    .addInterceptor(logging) // ДОБАВЛЯЕМ ЛОГИРОВАНИЕ
+                    .connectTimeout(60, TimeUnit.SECONDS)
+                    .readTimeout(180, TimeUnit.SECONDS)
                     .writeTimeout(60, TimeUnit.SECONDS)
                     .build();
 
             retrofit = new Retrofit.Builder()
                     .baseUrl(BASE_URL)
-                    .client(okHttpClient) // Подключаем клиент
+                    .client(okHttpClient)
                     .addConverterFactory(GsonConverterFactory.create())
                     .build();
         }

@@ -61,7 +61,8 @@ public class RecipeDetailActivity extends AppCompatActivity {
     }
 
     private void loadRecipe() {
-        ApiClient.getService().getRecipe(recipeId).enqueue(new Callback<ApiResponse<RecipeDto>>() {
+        // Было: getRecipe(recipeId) -> Стало: getRecipeById(recipeId)
+        ApiClient.getService().getRecipeById(recipeId).enqueue(new Callback<ApiResponse<RecipeDto>>() {
             @Override
             public void onResponse(Call<ApiResponse<RecipeDto>> call, Response<ApiResponse<RecipeDto>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().data != null) {

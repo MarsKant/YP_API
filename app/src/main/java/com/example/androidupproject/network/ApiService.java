@@ -1,17 +1,11 @@
 package com.example.androidupproject.network;
 
-import com.example.androidupproject.models.IngredientDto;
-import com.example.androidupproject.models.LoginResponse;
-import com.example.androidupproject.models.MenuDto;
-import com.example.androidupproject.models.RecipeDto;
-import com.example.androidupproject.models.ShoppingListDto;
-
+import com.example.androidupproject.models.*;
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.http.*;
 
 public interface ApiService {
-
     // === АВТОРИЗАЦИЯ ===
     @FormUrlEncoded
     @POST("api/Auth/login")
@@ -24,59 +18,67 @@ public interface ApiService {
     @POST("api/Auth/register")
     Call<LoginResponse> register(
             @Field("username") String username,
-            @Field("email") String email,
-            @Field("password") String password
+            @Field("password") String password,
+            @Field("email") String email
     );
 
-    // === ХОЛОДИЛЬНИК ===
-    @GET("api/Ingredients/fridge/{userId}")
-    Call<ApiResponse<List<IngredientDto>>> getFridge(@Path("userId") int userId);
+    // === РЕЦЕПТЫ ===
+    @GET("api/Recipes")
+    Call<ApiResponse<List<RecipeDto>>> getRecipes();
 
-    @POST("api/Inventory/FridgeItem/add/{userId}")
-    Call<ApiResponse<Void>> addToFridge(
+    @GET("api/Recipes/{id}")
+    Call<ApiResponse<RecipeDto>> getRecipeById(@Path("id") int id);
+
+    // === ИНВЕНТАРЬ (ХОЛОДИЛЬНИК) ===
+
+    // Получение списка (маршрут из вашего InventoryController)
+    @GET("api/Inventory/fridge/{userId}")
+    Call<InventoryResponse> getUserInventory(@Path("userId") int userId);
+
+    // Добавление через JSON
+    @POST("api/Inventory/add/{userId}")
+    Call<SimpleResponse> addToInventory(
             @Path("userId") int userId,
-            @Body IngredientDto ingredient
+            @Body InventoryAddRequest request
     );
 
-    @DELETE("/api/Inventory/user/{userId}/ingredient/{ingredientId}")
-    Call<ApiResponse<Void>> removeFromFridge(
+    // Удаление (Используем этот метод для MainActivity)
+    // В контроллере: [HttpDelete("user/{userId}/ingredient/{ingredientId}")]
+    @DELETE("api/Inventory/user/{userId}/ingredient/{ingredientId}")
+    Call<SimpleResponse> deleteInventoryItem(
             @Path("userId") int userId,
             @Path("ingredientId") int ingredientId
     );
 
-    // === МЕНЮ И РЕЦЕПТЫ ===
-    @GET("api/menu/user/{userId}/current")
-    Call<ApiResponse<MenuDto>> getCurrentMenu(@Path("userId") int userId);
+    // === МЕНЮ ===
+    @GET("api/Menu/user/{userId}")
+    Call<ApiResponse<List<MenuDto>>> getUserMenu(@Path("userId") int userId);
 
-    @GET("api/recipes/{id}")
-    Call<ApiResponse<RecipeDto>> getRecipe(@Path("id") int id);
+    @POST("api/Menu/generate-week/{userId}")
+    Call<SimpleResponse> generateMenu(@Path("userId") int userId);
 
-    @POST("/api/Ai/ask/{userId}")
-    Call<ApiResponse<Void>> generateMenu(@Path("userId") int userId, @Body List<IngredientDto> ingredientDtoList);
-
-    // НОВОЕ: Удаление меню
     @DELETE("api/Menu/{menuId}")
-    Call<ApiResponse<Void>> clearMenu(@Path("menuId") int id);
+    Call<ApiResponse<Void>> deleteMenu(@Path("menuId") int id);
+
     // === ИЗБРАННОЕ ===
-    @GET("api/recipes/favorites/{userId}")
+    @GET("api/Recipes/favorites/{userId}")
     Call<ApiResponse<List<RecipeDto>>> getFavorites(@Path("userId") int userId);
 
-    @POST("api/recipes/{recipeId}/favorite/{userId}")
+    @POST("api/Recipes/{recipeId}/favorite/{userId}")
     Call<ApiResponse<Void>> toggleFavorite(@Path("recipeId") int recipeId, @Path("userId") int userId);
 
     // === СПИСОК ПОКУПОК ===
-    @POST("api/shoppinglist/generate-from-menu/{menuId}/{userId}")
-    Call<ApiResponse<Void>> generateShoppingList(@Path("menuId") int menuId, @Path("userId") int userId);
-
-    @GET("api/shoppinglist/user/{userId}/current")
+    @GET("api/ShoppingList/user/{userId}/current")
     Call<ApiResponse<ShoppingListDto>> getShoppingList(@Path("userId") int userId);
 
-    @PUT("api/shoppinglist/items/{itemId}/toggle")
+    @POST("api/ShoppingList/generate-from-menu/{menuId}/{userId}")
+    Call<ApiResponse<Void>> generateShoppingList(@Path("menuId") int menuId, @Path("userId") int userId);
+
+    // Метод для переключения состояния (куплено/не куплено)
+    @PUT("api/ShoppingList/items/{itemId}/toggle")
     Call<ApiResponse<Void>> toggleShoppingItem(@Path("itemId") int itemId);
 
-    // НОВОЕ: Удаление товара из списка покупок
-    @DELETE("api/shoppinglist/items/{itemId}")
+    // Метод для удаления одного пункта из списка
+    @DELETE("api/ShoppingList/items/{itemId}")
     Call<ApiResponse<Void>> deleteShoppingItem(@Path("itemId") int itemId);
-
-
 }

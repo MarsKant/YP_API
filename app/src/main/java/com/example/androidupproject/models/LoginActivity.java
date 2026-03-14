@@ -2,6 +2,7 @@ package com.example.androidupproject.models;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -30,23 +31,26 @@ public class LoginActivity extends AppCompatActivity {
             String user = etUsername.getText().toString();
             String pass = etPassword.getText().toString();
 
+            com.example.androidupproject.models.LoginRequest loginRequest =
+                    new com.example.androidupproject.models.LoginRequest(user, pass);
+
             ApiClient.getService().login(user, pass).enqueue(new Callback<LoginResponse>() {
                 @Override
                 public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
                     if (response.isSuccessful() && response.body() != null && response.body().success) {
-                        // Сохраняем сессию
+                        // Сохраняем данные (id и token из ответа)
                         new SessionManager(LoginActivity.this).saveUser(response.body().id, response.body().token);
-                        // Переход на главный экран
+
                         startActivity(new Intent(LoginActivity.this, MainActivity.class));
                         finish();
                     } else {
-                        Toast.makeText(LoginActivity.this, "Ошибка входа", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(LoginActivity.this, "Ошибка: неверный логин или пароль", Toast.LENGTH_SHORT).show();
                     }
                 }
 
                 @Override
                 public void onFailure(Call<LoginResponse> call, Throwable t) {
-                    Toast.makeText(LoginActivity.this, "Ошибка сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e("NETWORK_ERROR", t.getMessage());
                 }
             });
         });

@@ -16,7 +16,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.androidupproject.models.IngredientDto;
+import com.example.androidupproject.models.InventoryAddRequest;
+import com.example.androidupproject.models.InventoryItemDto;
+import com.example.androidupproject.models.InventoryResponse;
 import com.example.androidupproject.models.SessionManager;
+import com.example.androidupproject.models.SimpleResponse;
 import com.example.androidupproject.network.ApiClient;
 import com.example.androidupproject.network.ApiResponse;
 import com.google.android.material.bottomnavigation.BottomNavigationView; // Импорт для нижней панели
@@ -60,15 +64,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadFridge() {
-        ApiClient.getService().getFridge(sessionManager.getUserId()).enqueue(new Callback<ApiResponse<List<IngredientDto>>>() {
+        // ИСПРАВЛЕНИЕ: указываем InventoryResponse вместо ApiResponse<List<...>>
+        ApiClient.getService().getUserInventory(sessionManager.getUserId()).enqueue(new Callback<InventoryResponse>() {
             @Override
-            public void onResponse(Call<ApiResponse<List<IngredientDto>>> call, Response<ApiResponse<List<IngredientDto>>> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().data != null) {
+            public void onResponse(Call<InventoryResponse> call, Response<InventoryResponse> response) {
+                // В InventoryResponse список лежит в поле .data
+                if (response.isSuccessful() && response.body() != null && response.body().success) {
                     adapter.setItems(response.body().data);
                 }
             }
             @Override
-            public void onFailure(Call<ApiResponse<List<IngredientDto>>> call, Throwable t) {
+            public void onFailure(Call<InventoryResponse> call, Throwable t) {
                 Toast.makeText(MainActivity.this, "Ошибка загрузки", Toast.LENGTH_SHORT).show();
             }
         });
@@ -76,37 +82,32 @@ public class MainActivity extends AppCompatActivity {
 
     private void addProduct() {
         String name = etNewProduct.getText().toString().trim();
-        if (name.isEmpty()) {
-            Toast.makeText(this, "Введите название", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        if (name.isEmpty()) return;
 
-        IngredientDto newProduct = new IngredientDto(name, "шт");
+        InventoryAddRequest request = new InventoryAddRequest(name, 1.0, "шт");
 
-        ApiClient.getService().addToFridge(sessionManager.getUserId(), newProduct)
-                .enqueue(new Callback<ApiResponse<Void>>() {
+        // ИСПРАВЛЕНИЕ: указываем SimpleResponse вместо ApiResponse<Void>
+        ApiClient.getService().addToInventory(sessionManager.getUserId(), request)
+                .enqueue(new Callback<SimpleResponse>() {
                     @Override
-                    public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
-                        if (response.isSuccessful()) {
+                    public void onResponse(Call<SimpleResponse> call, Response<SimpleResponse> response) {
+                        if (response.isSuccessful() && response.body() != null && response.body().success) {
                             etNewProduct.setText("");
-                            Toast.makeText(MainActivity.this, "Добавлено!", Toast.LENGTH_SHORT).show();
                             loadFridge();
-                        } else {
-                            Toast.makeText(MainActivity.this, "Ошибка: " + response.code(), Toast.LENGTH_SHORT).show();
                         }
                     }
-
                     @Override
-                    public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
-                        Toast.makeText(MainActivity.this, "Нет сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    public void onFailure(Call<SimpleResponse> call, Throwable t) {
+                        Toast.makeText(MainActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
     class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.ViewHolder> {
-        private List<IngredientDto> items = new ArrayList<>();
+        // 1. Меняем тип списка на InventoryItemDto
+        private List<InventoryItemDto> items = new ArrayList<>();
 
-        public void setItems(List<IngredientDto> items) {
+        public void setItems(List<InventoryItemDto> items) {
             this.items = items;
             notifyDataSetChanged();
         }
@@ -120,28 +121,36 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            IngredientDto item = items.get(position);
+            // 2. Работаем с объектом InventoryItemDto
+            InventoryItemDto item = items.get(position);
+
+            // Используем поле name из InventoryItemDto
             holder.tvName.setText(item.name);
+
             holder.btnDelete.setOnClickListener(v -> {
-                deleteProduct(item, item.id);
+                // Передаем весь объект в метод удаления
+                deleteProduct(item);
             });
         }
 
-        private void deleteProduct(IngredientDto item, int ingredientId) {
-            ApiClient.getService().removeFromFridge(sessionManager.getUserId(), ingredientId)
-                    .enqueue(new Callback<ApiResponse<Void>>() {
+        // 3. Исправленный метод удаления (теперь принимает только один аргумент)
+        private void deleteProduct(InventoryItemDto item) {
+            // ИСПРАВЛЕНИЕ: передаем два аргумента (userId и ingredientId)
+            // И используем SimpleResponse в Callback
+            int userId = sessionManager.getUserId();
+            android.util.Log.d("DEBUG_DELETE", "UserId: " + userId + ", IngredientId: " + item.ingredientId);
+            ApiClient.getService().deleteInventoryItem(userId, item.ingredientId)
+                    .enqueue(new Callback<SimpleResponse>() {
                         @Override
-                        public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
-                            if (response.isSuccessful()) {
+                        public void onResponse(Call<SimpleResponse> call, Response<SimpleResponse> response) {
+                            if (response.isSuccessful() && response.body() != null && response.body().success) {
                                 items.remove(item);
                                 notifyDataSetChanged();
                                 Toast.makeText(MainActivity.this, "Удалено", Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(MainActivity.this, "Ошибка удаления: " + response.code(), Toast.LENGTH_SHORT).show();
                             }
                         }
                         @Override
-                        public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                        public void onFailure(Call<SimpleResponse> call, Throwable t) {
                             Toast.makeText(MainActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
                         }
                     });

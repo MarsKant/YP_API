@@ -44,19 +44,26 @@ public class RegisterActivity extends AppCompatActivity {
                 return;
             }
 
-            ApiClient.getService().register(user, email, pass).enqueue(new Callback<LoginResponse>() {
+            // --- ИСПРАВЛЕНИЕ: Создаем объект RegisterRequest ---
+            com.example.androidupproject.models.RegisterRequest regRequest =
+                    new com.example.androidupproject.models.RegisterRequest(user, email, pass);
+
+            // Передаем объект regRequest вместо трех строк
+            ApiClient.getService().register(user, pass, email).enqueue(new Callback<LoginResponse>() {
                 @Override
                 public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
                     if (response.isSuccessful() && response.body() != null && response.body().success) {
-                        Toast.makeText(RegisterActivity.this, "Успешно! Теперь войдите.", Toast.LENGTH_LONG).show();
-                        finish(); // Возвращаемся на экран входа
+                        Toast.makeText(RegisterActivity.this, "Регистрация успешна! Войдите в аккаунт.", Toast.LENGTH_LONG).show();
+                        finish(); // Возвращаемся на экран логина
                     } else {
-                        Toast.makeText(RegisterActivity.this, "Ошибка регистрации", Toast.LENGTH_SHORT).show();
+                        // Если сервер прислал ошибку (например, пользователь уже существует)
+                        Toast.makeText(RegisterActivity.this, "Ошибка: " + response.code(), Toast.LENGTH_SHORT).show();
                     }
                 }
+
                 @Override
                 public void onFailure(Call<LoginResponse> call, Throwable t) {
-                    Toast.makeText(RegisterActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(RegisterActivity.this, "Ошибка сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                 }
             });
         });
