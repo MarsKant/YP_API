@@ -79,7 +79,7 @@ public class RecipeDetailActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<ImageGenerationResponse> call, Throwable t) {
                 btnGenerateImage.setEnabled(true);
-                btnGenerateImage.setText("Сгенерировать изображение");
+                btnGenerateImage.setText("Сгенерировать");
                 Toast.makeText(RecipeDetailActivity.this, "Ошибка сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
