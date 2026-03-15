@@ -22,43 +22,39 @@ public interface ApiService {
             @Field("email") String email
     );
 
-    // === РЕЦЕПТЫ ===
-    @GET("api/Recipes")
-    Call<ApiResponse<List<RecipeDto>>> getRecipes();
-
-    @GET("api/Recipes/{id}")
-    Call<ApiResponse<RecipeDto>> getRecipeById(@Path("id") int id);
-
     // === ИНВЕНТАРЬ (ХОЛОДИЛЬНИК) ===
-
-    // Получение списка (маршрут из вашего InventoryController)
     @GET("api/Inventory/fridge/{userId}")
     Call<InventoryResponse> getUserInventory(@Path("userId") int userId);
 
-    // Добавление через JSON
     @POST("api/Inventory/add/{userId}")
     Call<SimpleResponse> addToInventory(
             @Path("userId") int userId,
             @Body InventoryAddRequest request
     );
 
-    // Удаление (Используем этот метод для MainActivity)
-    // В контроллере: [HttpDelete("user/{userId}/ingredient/{ingredientId}")]
     @DELETE("api/Inventory/user/{userId}/ingredient/{ingredientId}")
     Call<SimpleResponse> deleteInventoryItem(
             @Path("userId") int userId,
             @Path("ingredientId") int ingredientId
     );
 
-    // === МЕНЮ ===
-    @GET("api/Menu/user/{userId}")
-    Call<ApiResponse<List<MenuDto>>> getUserMenu(@Path("userId") int userId);
+    // === МЕНЮ - ИСПРАВЛЕННЫЕ ЭНДПОИНТЫ ===
 
+    // Получение всех меню пользователя (возвращает массив MenuDto)
+    @GET("api/Menu/user/{userId}/all")
+    Call<List<MenuDto>> getUserMenus(@Path("userId") int userId);
+
+    // Получение деталей конкретного меню
+    @GET("api/Menu/{menuId}")
+    Call<MenuDetailsResponse> getMenuDetails(@Path("menuId") int menuId);
+
+    // Генерация нового меню
     @POST("api/Menu/generate-week/{userId}")
-    Call<SimpleResponse> generateMenu(@Path("userId") int userId);
+    Call<GenerateMenuResponse> generateMenu(@Path("userId") int userId);
 
+    // Удаление меню
     @DELETE("api/Menu/{menuId}")
-    Call<ApiResponse<Void>> deleteMenu(@Path("menuId") int id);
+    Call<SimpleResponse> deleteMenu(@Path("menuId") int menuId);
 
     // === ИЗБРАННОЕ ===
     @GET("api/Recipes/favorites/{userId}")
@@ -67,6 +63,10 @@ public interface ApiService {
     @POST("api/Recipes/{recipeId}/favorite/{userId}")
     Call<ApiResponse<Void>> toggleFavorite(@Path("recipeId") int recipeId, @Path("userId") int userId);
 
+    // === РЕЦЕПТЫ ===
+    @GET("api/Recipes/{id}")
+    Call<ApiResponse<RecipeDto>> getRecipeById(@Path("id") int id);
+
     // === СПИСОК ПОКУПОК ===
     @GET("api/ShoppingList/user/{userId}/current")
     Call<ApiResponse<ShoppingListDto>> getShoppingList(@Path("userId") int userId);
@@ -74,11 +74,17 @@ public interface ApiService {
     @POST("api/ShoppingList/generate-from-menu/{menuId}/{userId}")
     Call<ApiResponse<Void>> generateShoppingList(@Path("menuId") int menuId, @Path("userId") int userId);
 
-    // Метод для переключения состояния (куплено/не куплено)
     @PUT("api/ShoppingList/items/{itemId}/toggle")
     Call<ApiResponse<Void>> toggleShoppingItem(@Path("itemId") int itemId);
 
-    // Метод для удаления одного пункта из списка
     @DELETE("api/ShoppingList/items/{itemId}")
     Call<ApiResponse<Void>> deleteShoppingItem(@Path("itemId") int itemId);
+
+    // === ГЕНЕРАЦИЯ КАРТИНОК ===
+    @POST("api/Images/generate")
+    Call<ImageGenerationResponse> generateRecipeImage(@Body ImageGenerationRequest request);
+
+    // Парсинг изображения с Povar.ru
+    @GET("api/Images/parse-povar")
+    Call<ImageParseResponse> parsePovarImage(@Query("query") String query, @Query("RecipeId") int recipeId);
 }

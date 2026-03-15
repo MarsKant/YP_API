@@ -13,12 +13,26 @@ public class ApiClient {
 
     public static ApiService getService() {
         if (retrofit == null) {
-            // Создаем перехватчик логов
             HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
-            logging.setLevel(HttpLoggingInterceptor.Level.BODY); // Видеть заголовки и тело JSON
+            logging.setLevel(HttpLoggingInterceptor.Level.BODY);
 
+            // Добавляем interceptor для вывода подробной информации
             OkHttpClient okHttpClient = new OkHttpClient.Builder()
-                    .addInterceptor(logging) // ДОБАВЛЯЕМ ЛОГИРОВАНИЕ
+                    .addInterceptor(logging)
+                    .addInterceptor(chain -> {
+                        okhttp3.Request request = chain.request();
+                        android.util.Log.d("API_REQUEST", "URL: " + request.url());
+                        android.util.Log.d("API_REQUEST", "Method: " + request.method());
+
+                        okhttp3.Response response = chain.proceed(request);
+
+                        if (!response.isSuccessful()) {
+                            String errorBody = response.peekBody(Long.MAX_VALUE).string();
+                            android.util.Log.e("API_ERROR", "Code: " + response.code() + ", Body: " + errorBody);
+                        }
+
+                        return response;
+                    })
                     .connectTimeout(60, TimeUnit.SECONDS)
                     .readTimeout(180, TimeUnit.SECONDS)
                     .writeTimeout(60, TimeUnit.SECONDS)

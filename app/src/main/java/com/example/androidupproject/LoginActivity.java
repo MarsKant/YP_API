@@ -6,7 +6,6 @@ import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.androidupproject.models.LoginResponse;
@@ -31,29 +30,44 @@ public class LoginActivity extends AppCompatActivity {
             String user = etUsername.getText().toString();
             String pass = etPassword.getText().toString();
 
-            // 1. Создаем объект запроса (упаковываем данные)
-            // Убедитесь, что у вас создан класс LoginRequest с конструктором
-            com.example.androidupproject.models.LoginRequest loginRequest =
-                    new com.example.androidupproject.models.LoginRequest(user, pass);
-
-            // 2. Передаем объект в метод login()
             ApiClient.getService().login(user, pass).enqueue(new Callback<LoginResponse>() {
                 @Override
                 public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
-                    if (response.isSuccessful() && response.body() != null && response.body().success) {
-                        // Сохраняем данные (id и token из ответа)
-                        new SessionManager(LoginActivity.this).saveUser(response.body().id, response.body().token);
+                    Log.d("LOGIN_RESPONSE", "Code: " + response.code());
 
-                        startActivity(new Intent(LoginActivity.this, MainActivity.class));
-                        finish();
+                    if (response.isSuccessful() && response.body() != null) {
+                        LoginResponse loginResponse = response.body();
+                        if (loginResponse.success) {
+                            // Сохраняем данные пользователя
+                            new SessionManager(LoginActivity.this)
+                                    .saveUser(loginResponse.id, loginResponse.token);
+
+                            startActivity(new Intent(LoginActivity.this, MainActivity.class));
+                            finish();
+                        } else {
+                            Toast.makeText(LoginActivity.this,
+                                    "Ошибка: " + loginResponse.message,
+                                    Toast.LENGTH_SHORT).show();
+                        }
                     } else {
-                        Toast.makeText(LoginActivity.this, "Ошибка: неверный логин или пароль", Toast.LENGTH_SHORT).show();
+                        try {
+                            String errorBody = response.errorBody().string();
+                            Log.e("LOGIN_ERROR", "Error body: " + errorBody);
+                            Toast.makeText(LoginActivity.this,
+                                    "Ошибка сервера: " + response.code(),
+                                    Toast.LENGTH_SHORT).show();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
 
                 @Override
                 public void onFailure(Call<LoginResponse> call, Throwable t) {
-                    Log.e("NETWORK_ERROR", t.getMessage());
+                    Log.e("NETWORK_ERROR", "Message: " + t.getMessage());
+                    Toast.makeText(LoginActivity.this,
+                            "Ошибка сети: " + t.getMessage(),
+                            Toast.LENGTH_SHORT).show();
                 }
             });
         });

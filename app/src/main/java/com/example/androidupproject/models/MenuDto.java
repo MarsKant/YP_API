@@ -1,14 +1,18 @@
 package com.example.androidupproject.models;
+
 import com.google.gson.annotations.SerializedName;
 import java.util.List;
 
 public class MenuDto {
-    @SerializedName(value = "Id", alternate = {"id"})
+    @SerializedName("id")
     public int id;
 
-    @SerializedName(value = "Name", alternate = {"name"})
+    @SerializedName("name")
     public String name;
 
-    @SerializedName(value = "Items", alternate = {"items", "menuItems", "MenuItems"})
+    @SerializedName("items")
     public List<MenuItemDto> items;
+
+    @SerializedName("createdAt")
+    public String createdAt;
 }

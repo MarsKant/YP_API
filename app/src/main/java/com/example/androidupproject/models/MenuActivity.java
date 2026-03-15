@@ -2,6 +2,7 @@ package com.example.androidupproject.models;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,8 +18,9 @@ import com.example.androidupproject.NavigationHelper;
 import com.example.androidupproject.R;
 import com.example.androidupproject.network.ApiClient;
 import com.example.androidupproject.network.ApiResponse;
+import com.example.androidupproject.network.GenerateMenuResponse;
+import com.example.androidupproject.network.MenuDetailsResponse;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
-import com.example.androidupproject.models.*; // Импортируем все модели
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +35,6 @@ public class MenuActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private int currentMenuId = 0;
     private TextView tvMenuTitle;
-
-    // ИСПРАВЛЕНО: Теперь используем актуальный список InventoryItemDto для холодильника
     private List<InventoryItemDto> inventoryItems = new ArrayList<>();
 
     @Override
@@ -54,7 +54,7 @@ public class MenuActivity extends AppCompatActivity {
         NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_menu);
 
         Button btnGenMenu = findViewById(R.id.btnGenerateMenu);
-        btnGenMenu.setOnClickListener(v -> getFridgeAndGenerate());
+        btnGenMenu.setOnClickListener(v -> generateNewMenu());
 
         Button btnGenShop = findViewById(R.id.btnGenerateShop);
         btnGenShop.setOnClickListener(v -> generateShoppingList());
@@ -62,107 +62,196 @@ public class MenuActivity extends AppCompatActivity {
         Button btnClear = findViewById(R.id.btnClearMenu);
         btnClear.setOnClickListener(v -> clearMenu());
 
-        loadMenu();
-    }
-
-    private void getFridgeAndGenerate() {
-        // ИСПРАВЛЕНО: getFridge теперь возвращает List<InventoryItemDto>
-        ApiClient.getService().getUserInventory(sessionManager.getUserId()).enqueue(new Callback<InventoryResponse>() {
-            @Override
-            public void onResponse(Call<InventoryResponse> call, Response<InventoryResponse> response) {
-                if (response.isSuccessful() && response.body() != null && response.body().success) {
-                    inventoryItems = response.body().data; // Тип InventoryItemDto должен совпадать
-                    generateNewMenu();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<InventoryResponse> call, Throwable t) {
-
-            }
-
-        });
+        loadMenus();
     }
 
     private void generateNewMenu() {
-        // Используем SimpleResponse, так как именно его возвращает ApiService
+        Log.d("MENU_DEBUG", "Generating new menu for user: " + sessionManager.getUserId());
+
         ApiClient.getService().generateMenu(sessionManager.getUserId())
-                .enqueue(new Callback<SimpleResponse>() { // <-- ИСПРАВЛЕНО
+                .enqueue(new Callback<GenerateMenuResponse>() {
                     @Override
-                    public void onResponse(Call<SimpleResponse> call, Response<SimpleResponse> response) {
-                        if (response.isSuccessful() && response.body() != null && response.body().success) {
-                            Toast.makeText(MenuActivity.this, "Меню готово!", Toast.LENGTH_SHORT).show();
-                            loadMenu();
+                    public void onResponse(Call<GenerateMenuResponse> call, Response<GenerateMenuResponse> response) {
+                        Log.d("MENU_DEBUG", "Generate menu response code: " + response.code());
+
+                        if (response.isSuccessful() && response.body() != null) {
+                            GenerateMenuResponse genResponse = response.body();
+                            Log.d("MENU_DEBUG", "Generate menu response: success=" + genResponse.success +
+                                    ", menuId=" + genResponse.menuId);
+
+                            if (genResponse.success) {
+                                Toast.makeText(MenuActivity.this, "Меню готово!", Toast.LENGTH_SHORT).show();
+                                loadMenus();
+                            } else {
+                                String error = genResponse.error != null ? genResponse.error : "Неизвестная ошибка";
+                                Toast.makeText(MenuActivity.this, "Ошибка: " + error, Toast.LENGTH_LONG).show();
+                            }
                         } else {
-                            // Если пришел BadRequest (например, не хватило ингредиентов), покажем это
-                            Toast.makeText(MenuActivity.this, "Ошибка: рецепты не найдены", Toast.LENGTH_LONG).show();
+                            Toast.makeText(MenuActivity.this,
+                                    "Ошибка сервера: " + response.code(), Toast.LENGTH_LONG).show();
                         }
                     }
 
                     @Override
-                    public void onFailure(Call<SimpleResponse> call, Throwable t) {
-                        Toast.makeText(MenuActivity.this, "Ошибка сети или тайм-аут", Toast.LENGTH_LONG).show();
+                    public void onFailure(Call<GenerateMenuResponse> call, Throwable t) {
+                        Log.e("MENU_DEBUG", "Network failure: " + t.getMessage(), t);
+                        Toast.makeText(MenuActivity.this,
+                                "Ошибка сети: " + t.getMessage(), Toast.LENGTH_LONG).show();
                     }
                 });
     }
 
-    private void loadMenu() {
-        // ИСПРАВЛЕНО: getCurrentMenu возвращает List<MenuDto>, а не один объект
-        ApiClient.getService().getUserMenu(sessionManager.getUserId()).enqueue(new Callback<ApiResponse<List<MenuDto>>>() {
+    private void loadMenus() {
+        Log.d("MENU_DEBUG", "Loading menus for user: " + sessionManager.getUserId());
+
+        ApiClient.getService().getUserMenus(sessionManager.getUserId()).enqueue(new Callback<List<MenuDto>>() {
             @Override
-            public void onResponse(Call<ApiResponse<List<MenuDto>>> call, Response<ApiResponse<List<MenuDto>>> response) {
-                if (response.isSuccessful() && response.body() != null && !response.body().data.isEmpty()) {
-                    // Берем первое меню из списка
-                    MenuDto menu = response.body().data.get(0);
-                    currentMenuId = menu.id;
-                    adapter.setItems(menu.items);
-                    tvMenuTitle.setText(menu.name != null ? menu.name : "Ваше меню");
+            public void onResponse(Call<List<MenuDto>> call, Response<List<MenuDto>> response) {
+                Log.d("MENU_DEBUG", "Load menus response code: " + response.code());
+
+                if (response.isSuccessful() && response.body() != null) {
+                    List<MenuDto> menus = response.body();
+                    Log.d("MENU_DEBUG", "Received " + menus.size() + " menus");
+
+                    if (!menus.isEmpty()) {
+                        // Берем последнее созданное меню (с максимальным id)
+                        MenuDto menu = menus.get(menus.size() - 1);
+                        Log.d("MENU_DEBUG", "Selected menu: id=" + menu.id + ", name=" + menu.name);
+
+                        currentMenuId = menu.id;
+                        tvMenuTitle.setText(menu.name != null ? menu.name : "Ваше меню");
+
+                        // Загружаем детали меню
+                        loadMenuDetails(menu.id);
+                    } else {
+                        Log.d("MENU_DEBUG", "No menus found");
+                        tvMenuTitle.setText("Меню не найдено");
+                        adapter.setItems(new ArrayList<>());
+                    }
                 } else {
-                    tvMenuTitle.setText("Меню не найдено");
+                    Log.e("MENU_DEBUG", "Failed to load menus. Code: " + response.code());
+                    tvMenuTitle.setText("Ошибка загрузки меню");
                     adapter.setItems(new ArrayList<>());
                 }
             }
+
             @Override
-            public void onFailure(Call<ApiResponse<List<MenuDto>>> call, Throwable t) {
-                Toast.makeText(MenuActivity.this, "Ошибка загрузки меню", Toast.LENGTH_SHORT).show();
+            public void onFailure(Call<List<MenuDto>> call, Throwable t) {
+                Log.e("MENU_DEBUG", "Network failure loading menus: " + t.getMessage(), t);
+                Toast.makeText(MenuActivity.this, "Ошибка сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                tvMenuTitle.setText("Ошибка сети");
+                adapter.setItems(new ArrayList<>());
+            }
+        });
+    }
+
+    private void loadMenuDetails(int menuId) {
+        Log.d("MENU_DEBUG", "Loading details for menuId: " + menuId);
+
+        ApiClient.getService().getMenuDetails(menuId).enqueue(new Callback<MenuDetailsResponse>() {
+            @Override
+            public void onResponse(Call<MenuDetailsResponse> call, Response<MenuDetailsResponse> response) {
+                Log.d("MENU_DEBUG", "Menu details response code: " + response.code());
+
+                if (response.isSuccessful() && response.body() != null) {
+                    MenuDetailsResponse detailsResponse = response.body();
+                    Log.d("MENU_DEBUG", "Menu details success: " + detailsResponse.success);
+
+                    if (detailsResponse.success && detailsResponse.data != null) {
+                        MenuDto menu = detailsResponse.data;
+                        Log.d("MENU_DEBUG", "Menu items count: " +
+                                (menu.items != null ? menu.items.size() : "null"));
+
+                        if (menu.items != null && !menu.items.isEmpty()) {
+                            adapter.setItems(menu.items);
+                        } else {
+                            adapter.setItems(new ArrayList<>());
+                        }
+                    } else {
+                        adapter.setItems(new ArrayList<>());
+                    }
+                } else {
+                    Log.e("MENU_DEBUG", "Failed to load menu details");
+                    adapter.setItems(new ArrayList<>());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<MenuDetailsResponse> call, Throwable t) {
+                Log.e("MENU_DEBUG", "Network failure loading details: " + t.getMessage(), t);
+                adapter.setItems(new ArrayList<>());
             }
         });
     }
 
     private void clearMenu() {
-        if (currentMenuId == 0) return;
+        if (currentMenuId == 0) {
+            Toast.makeText(this, "Нет меню для удаления", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        ApiClient.getService().deleteMenu(currentMenuId).enqueue(new Callback<ApiResponse<Void>>() {
+        Log.d("MENU_DEBUG", "Deleting menu: " + currentMenuId);
+
+        ApiClient.getService().deleteMenu(currentMenuId).enqueue(new Callback<SimpleResponse>() {
             @Override
-            public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
-                if (response.isSuccessful()) {
-                    adapter.setItems(new ArrayList<>());
-                    tvMenuTitle.setText("Меню удалено");
-                    currentMenuId = 0;
+            public void onResponse(Call<SimpleResponse> call, Response<SimpleResponse> response) {
+                Log.d("MENU_DEBUG", "Delete menu response code: " + response.code());
+
+                if (response.isSuccessful() && response.body() != null) {
+                    SimpleResponse simpleResponse = response.body();
+                    if (simpleResponse.success) {
+                        adapter.setItems(new ArrayList<>());
+                        tvMenuTitle.setText("Меню удалено");
+                        currentMenuId = 0;
+                        Toast.makeText(MenuActivity.this, "Меню удалено", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(MenuActivity.this, "Ошибка при удалении", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(MenuActivity.this, "Ошибка сервера", Toast.LENGTH_SHORT).show();
                 }
             }
+
             @Override
-            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {}
+            public void onFailure(Call<SimpleResponse> call, Throwable t) {
+                Log.e("MENU_DEBUG", "Network failure deleting menu: " + t.getMessage(), t);
+                Toast.makeText(MenuActivity.this, "Ошибка сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
     private void generateShoppingList() {
-        if (currentMenuId == 0) return;
+        if (currentMenuId == 0) {
+            Toast.makeText(this, "Сначала создайте меню", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Log.d("MENU_DEBUG", "Generating shopping list for menu: " + currentMenuId);
+
         ApiClient.getService().generateShoppingList(currentMenuId, sessionManager.getUserId()).enqueue(new Callback<ApiResponse<Void>>() {
             @Override
             public void onResponse(Call<ApiResponse<Void>> call, Response<ApiResponse<Void>> response) {
-                if (response.isSuccessful()) {
+                Log.d("MENU_DEBUG", "Generate shopping list response code: " + response.code());
+
+                if (response.isSuccessful() && response.body() != null && response.body().success) {
                     Toast.makeText(MenuActivity.this, "Список покупок создан!", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MenuActivity.this, "Ошибка при создании списка", Toast.LENGTH_SHORT).show();
                 }
             }
+
             @Override
-            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {}
+            public void onFailure(Call<ApiResponse<Void>> call, Throwable t) {
+                Log.e("MENU_DEBUG", "Network failure: " + t.getMessage(), t);
+                Toast.makeText(MenuActivity.this, "Ошибка сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
-    // Адаптер остается почти без изменений, только проверка на null для безопасности
+    // Адаптер остается без изменений
     class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder> {
         private List<MenuItemDto> items = new ArrayList<>();
+
         public void setItems(List<MenuItemDto> items) {
             this.items = (items != null) ? items : new ArrayList<>();
             notifyDataSetChanged();
@@ -177,16 +266,36 @@ public class MenuActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            MenuItemDto item = items.get(position);
-            // Проверьте, что в MenuItemDto есть эти поля (date, mealType, recipeTitle)
-            holder.tvDateMeal.setText(item.date);
-            holder.tvRecipe.setText(item.recipeTitle);
+            try {
+                MenuItemDto item = items.get(position);
 
-            holder.btnOpen.setOnClickListener(v -> {
-                Intent intent = new Intent(MenuActivity.this, RecipeDetailActivity.class);
-                intent.putExtra("RECIPE_ID", item.recipeId);
-                startActivity(intent);
-            });
+                String dateStr = "";
+                if (item.date != null) {
+                    try {
+                        String[] parts = item.date.split("T");
+                        if (parts.length > 0) {
+                            dateStr = parts[0] + " ";
+                        }
+                    } catch (Exception e) {
+                        dateStr = item.date + " ";
+                    }
+                }
+
+                holder.tvDateMeal.setText(dateStr + (item.mealType != null ? item.mealType : "Прием пищи"));
+                holder.tvRecipe.setText(item.recipeTitle != null ? item.recipeTitle : "Рецепт");
+
+                holder.btnOpen.setOnClickListener(v -> {
+                    if (item.recipeId > 0) {
+                        Intent intent = new Intent(MenuActivity.this, RecipeDetailActivity.class);
+                        intent.putExtra("RECIPE_ID", item.recipeId);
+                        startActivity(intent);
+                    } else {
+                        Toast.makeText(MenuActivity.this, "ID рецепта не указан", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } catch (Exception e) {
+                Log.e("MENU_DEBUG", "Error binding view at position " + position, e);
+            }
         }
 
         @Override
@@ -195,6 +304,7 @@ public class MenuActivity extends AppCompatActivity {
         class ViewHolder extends RecyclerView.ViewHolder {
             TextView tvDateMeal, tvRecipe;
             Button btnOpen;
+
             public ViewHolder(View itemView) {
                 super(itemView);
                 tvDateMeal = itemView.findViewById(R.id.tvDateMeal);

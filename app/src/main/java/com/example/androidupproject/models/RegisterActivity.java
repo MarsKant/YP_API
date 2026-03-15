@@ -2,15 +2,17 @@ package com.example.androidupproject.models;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.androidupproject.LoginActivity;
 import com.example.androidupproject.R;
-import com.example.androidupproject.models.LoginResponse;
 import com.example.androidupproject.network.ApiClient;
+
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -44,26 +46,36 @@ public class RegisterActivity extends AppCompatActivity {
                 return;
             }
 
-            // --- ИСПРАВЛЕНИЕ: Создаем объект RegisterRequest ---
-            com.example.androidupproject.models.RegisterRequest regRequest =
-                    new com.example.androidupproject.models.RegisterRequest(user, email, pass);
-
-            // Передаем объект regRequest вместо трех строк
             ApiClient.getService().register(user, pass, email).enqueue(new Callback<LoginResponse>() {
                 @Override
                 public void onResponse(Call<LoginResponse> call, Response<LoginResponse> response) {
-                    if (response.isSuccessful() && response.body() != null && response.body().success) {
-                        Toast.makeText(RegisterActivity.this, "Регистрация успешна! Войдите в аккаунт.", Toast.LENGTH_LONG).show();
-                        finish(); // Возвращаемся на экран логина
+                    Log.d("REGISTER_RESPONSE", "Code: " + response.code());
+
+                    if (response.isSuccessful() && response.body() != null) {
+                        LoginResponse loginResponse = response.body();
+                        if (loginResponse.success) {
+                            Toast.makeText(RegisterActivity.this,
+                                    "Регистрация успешна! Войдите в аккаунт.",
+                                    Toast.LENGTH_LONG).show();
+                            finish();
+                        } else {
+                            Toast.makeText(RegisterActivity.this,
+                                    "Ошибка: " + loginResponse.message,
+                                    Toast.LENGTH_SHORT).show();
+                        }
                     } else {
-                        // Если сервер прислал ошибку (например, пользователь уже существует)
-                        Toast.makeText(RegisterActivity.this, "Ошибка: " + response.code(), Toast.LENGTH_SHORT).show();
+                        Toast.makeText(RegisterActivity.this,
+                                "Ошибка сервера: " + response.code(),
+                                Toast.LENGTH_SHORT).show();
                     }
                 }
 
                 @Override
                 public void onFailure(Call<LoginResponse> call, Throwable t) {
-                    Toast.makeText(RegisterActivity.this, "Ошибка сети: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                    Log.e("REGISTER_ERROR", "Message: " + t.getMessage());
+                    Toast.makeText(RegisterActivity.this,
+                            "Ошибка сети: " + t.getMessage(),
+                            Toast.LENGTH_SHORT).show();
                 }
             });
         });
