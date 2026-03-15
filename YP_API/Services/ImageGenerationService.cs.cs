@@ -106,13 +106,23 @@ namespace YP_API.Services
                     throw new Exception("Получен пустой файл");
                 }
 
-                string appDir = AppDomain.CurrentDomain.BaseDirectory;
+                string webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                string imagesPath = Path.Combine(webRootPath, "images");
+
+                if (!Directory.Exists(imagesPath))
+                {
+                    Directory.CreateDirectory(imagesPath);
+                }
+
                 string fileName = $"wallpaper_{DateTime.Now:yyyyMMdd_HHmmss}.jpg";
-                string filePath = Path.Combine(appDir, fileName);
+                string filePath = Path.Combine(imagesPath, fileName);
 
                 await File.WriteAllBytesAsync(filePath, imageBytes);
 
-                return filePath;
+                Console.WriteLine($"Файл сохранен: {filePath}");
+
+                string baseUrl = "http://10.0.2.2:5286";
+                return $"{baseUrl}/images/{fileName}";
             }
             catch (Exception ex)
             {

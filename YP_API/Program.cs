@@ -128,7 +128,7 @@ using (var scope = app.Services.CreateScope())
         catch { }
     }
 }
-
+app.UseStaticFiles();
 app.UseCors("AllowAll");
 
 if (app.Environment.IsDevelopment())
