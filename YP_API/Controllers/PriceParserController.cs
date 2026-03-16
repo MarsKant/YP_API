@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using YP_API.Data;
 using YP_API.Interfaces;
-using YP_API.Models;
 
 namespace YP_API.Controllers
 {

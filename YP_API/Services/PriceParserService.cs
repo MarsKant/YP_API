@@ -1,13 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Playwright;
-using System.Globalization;
-using System.Net;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using YP_API.Controllers;
 using YP_API.Data;
 using YP_API.Interfaces;
-using YP_API.Services;
 
 public class PriceParserService : IPriceParserService
 {
