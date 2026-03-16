@@ -53,6 +53,8 @@ public class MenuActivity extends AppCompatActivity {
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
         NavigationHelper.setupNavigation(this, bottomNav, R.id.nav_menu);
 
+        loadInventory();
+
         Button btnGenMenu = findViewById(R.id.btnGenerateMenu);
         btnGenMenu.setOnClickListener(v -> generateNewMenu());
 
@@ -65,38 +67,56 @@ public class MenuActivity extends AppCompatActivity {
         loadMenus();
     }
 
+    private List<IngredientDto> convertToIngredientDto(List<InventoryItemDto> inventoryItems) {
+        List<IngredientDto> result = new ArrayList<>();
+        for (InventoryItemDto item : inventoryItems) {
+            IngredientDto dto = new IngredientDto();
+            dto.name = item.name;
+            dto.quantity = item.quantity;
+            dto.unit = item.unit;
+            dto.category = item.category;
+            dto.ingredientId = item.ingredientId;
+            dto.id = item.id;
+            result.add(dto);
+        }
+        return result;
+    }
+
     private void generateNewMenu() {
+        int userId = sessionManager.getUserId();
         Log.d("MENU_DEBUG", "Generating new menu for user: " + sessionManager.getUserId());
 
-        ApiClient.getService().generateMenu(sessionManager.getUserId())
+        if (inventoryItems.isEmpty()) {
+            Toast.makeText(this, "Добавьте ингредиенты в инвентарь", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        List<IngredientDto> ingredientsToSend = convertToIngredientDto(inventoryItems);
+
+        ApiClient.getService().generateMenu(sessionManager.getUserId(), ingredientsToSend)
                 .enqueue(new Callback<GenerateMenuResponse>() {
                     @Override
                     public void onResponse(Call<GenerateMenuResponse> call, Response<GenerateMenuResponse> response) {
                         Log.d("MENU_DEBUG", "Generate menu response code: " + response.code());
 
-                        if (response.isSuccessful() && response.body() != null) {
+                        if (response.isSuccessful() && response.body() != null && response.body().menuId > 0) {
                             GenerateMenuResponse genResponse = response.body();
                             Log.d("MENU_DEBUG", "Generate menu response: success=" + genResponse.success +
                                     ", menuId=" + genResponse.menuId);
-
-                            if (genResponse.success) {
-                                Toast.makeText(MenuActivity.this, "Меню готово!", Toast.LENGTH_SHORT).show();
-                                loadMenus();
-
-                                // Начисляем очки за создание меню
-                                ApiClient.getService().menuCreated(sessionManager.getUserId()).enqueue(new Callback<PointsResponse>() {
-                                    @Override
-                                    public void onResponse(Call<PointsResponse> call, Response<PointsResponse> response) {
-                                        if (response.isSuccessful() && response.body() != null) {
-                                            Toast.makeText(MenuActivity.this, response.body().message, Toast.LENGTH_SHORT).show();
-                                        }
+                            Toast.makeText(MenuActivity.this, "Меню готово!", Toast.LENGTH_SHORT).show();
+                            loadMenus();
+                            ApiClient.getService().menuCreated(sessionManager.getUserId()).enqueue(new Callback<PointsResponse>() {
+                                @Override
+                                public void onResponse(Call<PointsResponse> call, Response<PointsResponse> response) {
+                                    if (response.isSuccessful() && response.body() != null) {
+                                        Toast.makeText(MenuActivity.this, response.body().message, Toast.LENGTH_SHORT).show();
                                     }
+                                }
 
-                                    @Override
-                                    public void onFailure(Call<PointsResponse> call, Throwable t) {
-                                    }
-                                });
-                            }
+                                @Override
+                                public void onFailure(Call<PointsResponse> call, Throwable t) {
+                                }
+                            });
                         }
                     }
 
@@ -122,14 +142,12 @@ public class MenuActivity extends AppCompatActivity {
                     Log.d("MENU_DEBUG", "Received " + menus.size() + " menus");
 
                     if (!menus.isEmpty()) {
-                        // Берем последнее созданное меню (с максимальным id)
-                        MenuDto menu = menus.get(menus.size() - 1);
+                        MenuDto menu = menus.get(0);
                         Log.d("MENU_DEBUG", "Selected menu: id=" + menu.id + ", name=" + menu.name);
 
                         currentMenuId = menu.id;
                         tvMenuTitle.setText(menu.name != null ? menu.name : "Ваше меню");
 
-                        // Загружаем детали меню
                         loadMenuDetails(menu.id);
                     } else {
                         Log.d("MENU_DEBUG", "No menus found");
@@ -152,7 +170,6 @@ public class MenuActivity extends AppCompatActivity {
             }
         });
     }
-
     private void loadMenuDetails(int menuId) {
         Log.d("MENU_DEBUG", "Loading details for menuId: " + menuId);
 
@@ -191,7 +208,6 @@ public class MenuActivity extends AppCompatActivity {
             }
         });
     }
-
     private void clearMenu() {
         if (currentMenuId == 0) {
             Toast.makeText(this, "Нет меню для удаления", Toast.LENGTH_SHORT).show();
@@ -227,7 +243,6 @@ public class MenuActivity extends AppCompatActivity {
             }
         });
     }
-
     private void generateShoppingList() {
         if (currentMenuId == 0) {
             Toast.makeText(this, "Сначала создайте меню", Toast.LENGTH_SHORT).show();
@@ -255,8 +270,32 @@ public class MenuActivity extends AppCompatActivity {
             }
         });
     }
+    private void loadInventory() {
+        Log.d("MENU_DEBUG", "Loading inventory for user: " + sessionManager.getUserId());
 
-    // Адаптер остается без изменений
+        ApiClient.getService().getUserInventory(sessionManager.getUserId())
+                .enqueue(new Callback<InventoryResponse>() {
+                    @Override
+                    public void onResponse(Call<InventoryResponse> call, Response<InventoryResponse> response) {
+                        if (response.isSuccessful() && response.body() != null && response.body().success) {
+                            inventoryItems.clear();
+                            if (response.body().data != null) {
+                                inventoryItems.addAll(response.body().data);
+                                Log.d("MENU_DEBUG", "Loaded " + inventoryItems.size() + " inventory items");
+                            }
+                        } else {
+                            Log.e("MENU_DEBUG", "Failed to load inventory: " + response.code());
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<InventoryResponse> call, Throwable t) {
+                        Log.e("MENU_DEBUG", "Network error loading inventory: " + t.getMessage());
+                        Toast.makeText(MenuActivity.this, "Не удалось загрузить инвентарь", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
     class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder> {
         private List<MenuItemDto> items = new ArrayList<>();
 

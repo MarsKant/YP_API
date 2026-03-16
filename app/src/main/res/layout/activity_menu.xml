@@ -27,28 +27,28 @@
             android:id="@+id/btnGenerateMenu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="🔄 Сгенерировать новое меню"
+            android:layout_marginBottom="8dp"
             android:backgroundTint="#2196F3"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="8dp"/>
+            android:text="Сгенерировать новое меню"
+            android:textColor="#FFFFFF" />
 
         <Button
             android:id="@+id/btnGenerateShop"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="🛒 Создать список покупок"
+            android:layout_marginBottom="8dp"
             android:backgroundTint="@color/primary_green"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="8dp"/>
+            android:text="Создать список покупок"
+            android:textColor="#FFFFFF" />
 
         <Button
             android:id="@+id/btnClearMenu"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="❌ Очистить меню"
+            android:layout_marginBottom="8dp"
             android:backgroundTint="#D32F2F"
-            android:textColor="#FFFFFF"
-            android:layout_marginBottom="8dp"/>
+            android:text="Очистить меню"
+            android:textColor="#FFFFFF" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvMenu"

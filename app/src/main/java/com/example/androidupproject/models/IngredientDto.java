@@ -18,7 +18,6 @@ public class IngredientDto {
     @SerializedName(value = "IngredientId", alternate = {"ingredientId"})
     public int ingredientId;
 
-    // Добавляем поле quantity
     @SerializedName(value = "Quantity", alternate = {"quantity"})
     public double quantity;
 
@@ -30,7 +29,7 @@ public class IngredientDto {
         this.category = "Разное";
         this.id = 1;
         this.ingredientId = 1;
-        this.quantity = 1;  // значение по умолчанию
+        this.quantity = 1;
     }
 
     public int getDeleteId() {

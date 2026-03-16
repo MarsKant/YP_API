@@ -40,17 +40,14 @@ public interface ApiService {
 
     // === МЕНЮ - ИСПРАВЛЕННЫЕ ЭНДПОИНТЫ ===
 
-    // Получение всех меню пользователя (возвращает массив MenuDto)
     @GET("api/Menu/user/{userId}/all")
     Call<List<MenuDto>> getUserMenus(@Path("userId") int userId);
-
-    // Получение деталей конкретного меню
     @GET("api/Menu/{menuId}")
     Call<MenuDetailsResponse> getMenuDetails(@Path("menuId") int menuId);
 
     // Генерация нового меню
-    @POST("api/Menu/generate-week/{userId}")
-    Call<GenerateMenuResponse> generateMenu(@Path("userId") int userId);
+    @POST("api/Ai/Ask/{userId}")
+    Call<GenerateMenuResponse> generateMenu(@Path("userId") int userId, @Body List<IngredientDto> Ingredients);
 
     // Удаление меню
     @DELETE("api/Menu/{menuId}")

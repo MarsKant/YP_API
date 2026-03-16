@@ -27,7 +27,7 @@
         android:id="@+id/btnOpenRecipe"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="📝 Рецепт"
-        android:textSize="12sp"
-        android:backgroundTint="#FF9800"/>
+        android:backgroundTint="#FF9800"
+        android:text="Рецепт"
+        android:textSize="12sp" />
 </LinearLayout>
