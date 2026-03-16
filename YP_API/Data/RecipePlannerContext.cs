@@ -123,7 +123,7 @@ namespace YP_API.Data
         public DbSet<RecipeIngredient> RecipeIngredients { get; set; }
         public DbSet<Menu> Menus { get; set; }
         public DbSet<MenuItem> MenuItems { get; set; }
-
+        public DbSet<UserPoints> UserPoints { get; set; }
         public DbSet<ShoppingList> ShoppingLists { get; set; }
         public DbSet<ShoppingListItem> ShoppingListItems { get; set; }
         public DbSet<UserFavorite> UserFavorites { get; set; }
@@ -183,6 +183,13 @@ namespace YP_API.Data
             {
                 entity.HasKey(fi => fi.Id);
                 entity.HasIndex(fi => new { fi.UserId, fi.IngredientId }).IsUnique();
+            });
+
+            modelBuilder.Entity<UserPoints>().ToTable("user_points");
+            modelBuilder.Entity<UserPoints>(entity =>
+            {
+                entity.HasKey(up => up.Id);
+                entity.HasIndex(up => up.UserId).IsUnique();
             });
 
             DataSeeder.Seed(modelBuilder);

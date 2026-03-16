@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace YP_API.Models
 {
@@ -118,5 +119,23 @@ namespace YP_API.Models
 
         public User User { get; set; }
         public Recipe Recipe { get; set; }
+    }
+
+    public class UserPoints
+    {
+        [Key]
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public int Points { get; set; }
+        public int Level { get; set; }
+        public DateTime LastUpdated { get; set; }
+
+        public User User { get; set; }
+    }
+
+    public class AddPointsRequest
+    {
+        public int Points { get; set; }
+        public string Action { get; set; }
     }
 }

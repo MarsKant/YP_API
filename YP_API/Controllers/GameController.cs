@@ -1,179 +1,178 @@
-﻿//using Microsoft.AspNetCore.Mvc;
-//using Microsoft.EntityFrameworkCore;
-//using YP_API.Data;
-//using YP_API.Models;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using YP_API.Data;
+using YP_API.Models;
 
-//[ApiController]
-//[Route("api/[controller]")]
-//public class GameController : ControllerBase
-//{
-//    private readonly RecipePlannerContext _context;
+namespace YP_API.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class GameController : ControllerBase
+    {
+        private readonly RecipePlannerContext _context;
 
-//    public GameController(RecipePlannerContext context)
-//    {
-//        _context = context;
-//    }
+        public GameController(RecipePlannerContext context)
+        {
+            _context = context;
+        }
 
-//    [HttpGet("get-score-by-user-id/{userId}")]
-//    public async Task<ActionResult> GetScoreByUserId(int userId)
-//    {
-//        try
-//        {
-//            var score = await _context.Scores
-//                .Include(m => m.Items)
-//                    .ThenInclude(i => i.Recipe)
-//                        .ThenInclude(r => r.RecipeIngredients)
-//                            .ThenInclude(ri => ri.Ingredient)
-//                .FirstOrDefaultAsync(m => m.Id == menuId && m.UserId == userId);
+        // Получить очки и уровень пользователя
+        [HttpGet("user/{userId}/points")]
+        public async Task<ActionResult> GetUserPoints(int userId)
+        {
+            try
+            {
+                var userPoints = await _context.Set<UserPoints>()
+                    .FirstOrDefaultAsync(up => up.UserId == userId);
 
-//            if (menu == null)
-//                return NotFound(new { error = "Меню не найдено" });
+                if (userPoints == null)
+                {
+                    userPoints = new UserPoints
+                    {
+                        UserId = userId,
+                        Points = 0,
+                        Level = 1,
+                        LastUpdated = DateTime.UtcNow
+                    };
+                    _context.Set<UserPoints>().Add(userPoints);
+                    await _context.SaveChangesAsync();
+                }
 
-//            var recipeIngredients = menu.Items
-//                .SelectMany(i => i.Recipe?.RecipeIngredients ?? Enumerable.Empty<RecipeIngredient>())
-//                .Where(ri => ri.Ingredient != null)
-//                .ToList();
+                int nextLevelPoints = (userPoints.Level + 1) * 1000;
+                double progress = (userPoints.Points % 1000) / 10.0;
 
-//            if (!recipeIngredients.Any())
-//                return BadRequest(new { error = "В рецептах меню нет ингредиентов" });
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        points = userPoints.Points,
+                        level = userPoints.Level,
+                        nextLevelPoints = nextLevelPoints,
+                        progress = progress
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
 
-//            var shoppingList = new ShoppingList
-//            {
-//                UserId = userId,
-//                Name = $"Список для {menu.Name}",
-//                CreatedAt = DateTime.UtcNow,
-//                IsCompleted = false
-//            };
+        // Начисление очков за добавление продукта
+        [HttpPost("user/{userId}/product-added")]
+        public async Task<ActionResult> ProductAdded(int userId)
+        {
+            return await AddPoints(userId, 10, "product_added");
+        }
 
-//            var ingredientGroups = recipeIngredients
-//                .GroupBy(ri => ri.IngredientId)
-//                .Select(g => new
-//                {
-//                    IngredientId = g.Key,
-//                    TotalQuantity = g.Sum(ri => ri.Quantity)
-//                });
+        // Начисление очков за удаление продукта
+        [HttpPost("user/{userId}/product-removed")]
+        public async Task<ActionResult> ProductRemoved(int userId)
+        {
+            return await AddPoints(userId, 5, "product_removed");
+        }
 
-//            foreach (var group in ingredientGroups)
-//            {
-//                shoppingList.Items.Add(new ShoppingListItem
-//                {
-//                    IngredientId = group.IngredientId,
-//                    Quantity = group.TotalQuantity,
-//                    IsPurchased = false
-//                });
-//            }
+        // Начисление очков за создание меню
+        [HttpPost("user/{userId}/menu-created")]
+        public async Task<ActionResult> MenuCreated(int userId)
+        {
+            return await AddPoints(userId, 50, "menu_created");
+        }
 
-//            await _context.ShoppingLists.AddAsync(shoppingList);
-//            await _context.SaveChangesAsync();
+        // Начисление очков за добавление в избранное
+        [HttpPost("user/{userId}/favorite-added")]
+        public async Task<ActionResult> FavoriteAdded(int userId)
+        {
+            return await AddPoints(userId, 15, "favorite_added");
+        }
 
-//            return Ok(new
-//            {
-//                success = true,
-//                message = "Список покупок создан",
-//                listId = shoppingList.Id,
-//                itemCount = shoppingList.Items.Count
-//            });
-//        }
-//        catch (Exception ex)
-//        {
-//            return BadRequest(new { error = ex.Message });
-//        }
-//    }
+        // Начисление очков за просмотр рецепта
+        [HttpPost("user/{userId}/recipe-viewed")]
+        public async Task<ActionResult> RecipeViewed(int userId)
+        {
+            return await AddPoints(userId, 3, "recipe_viewed");
+        }
 
-//    [HttpGet("user/{userId}/current")]
-//    public async Task<ActionResult> GetCurrentShoppingList(int userId)
-//    {
-//        try
-//        {
-//            var list = await _context.ShoppingLists
-//                .Include(sl => sl.Items)
-//                    .ThenInclude(i => i.Ingredient)
-//                .Where(sl => sl.UserId == userId && !sl.IsCompleted)
-//                .OrderByDescending(sl => sl.CreatedAt)
-//                .FirstOrDefaultAsync();
+        // Начисление очков за генерацию списка покупок
+        [HttpPost("user/{userId}/shopping-list-generated")]
+        public async Task<ActionResult> ShoppingListGenerated(int userId)
+        {
+            return await AddPoints(userId, 20, "shopping_list_generated");
+        }
 
-//            if (list == null)
-//                return Ok(new
-//                {
-//                    success = true,
-//                    data = (object)null,
-//                    message = "Нет активных списков покупок"
-//                });
+        // Общий метод для начисления очков
+        private async Task<ActionResult> AddPoints(int userId, int pointsToAdd, string action)
+        {
+            try
+            {
+                var userPoints = await _context.Set<UserPoints>()
+                    .FirstOrDefaultAsync(up => up.UserId == userId);
 
-//            return Ok(new
-//            {
-//                success = true,
-//                data = new
-//                {
-//                    Id = list.Id,
-//                    Name = list.Name,
-//                    IsCompleted = list.IsCompleted,
-//                    CreatedAt = list.CreatedAt,
-//                    Items = list.Items.Select(i => new
-//                    {
-//                        Id = i.Id,
-//                        IngredientId = i.IngredientId,
-//                        Name = i.Ingredient?.Name,
-//                        Unit = i.Ingredient?.Unit,
-//                        Price = i.Ingredient?.Price,
-//                        Quantity = i.Quantity,
-//                        IsPurchased = i.IsPurchased
-//                    })
-//                }
-//            });
-//        }
-//        catch (Exception ex)
-//        {
-//            return StatusCode(500, new { error = ex.Message });
-//        }
-//    }
+                if (userPoints == null)
+                {
+                    userPoints = new UserPoints
+                    {
+                        UserId = userId,
+                        Points = 0,
+                        Level = 1
+                    };
+                    _context.Set<UserPoints>().Add(userPoints);
+                }
 
-//    [HttpPut("items/{itemId}/toggle")]
-//    public async Task<ActionResult> ToggleItemPurchased(int itemId)
-//    {
-//        try
-//        {
-//            var item = await _context.ShoppingListItems
-//                .Include(i => i.ShoppingList)
-//                .FirstOrDefaultAsync(i => i.Id == itemId);
+                userPoints.Points += pointsToAdd;
 
-//            if (item == null)
-//                return NotFound(new { error = "Товар не найден" });
+                // Расчет уровня (каждые 1000 очков = новый уровень)
+                int newLevel = (userPoints.Points / 1000) + 1;
+                bool leveledUp = newLevel > userPoints.Level;
 
-//            item.IsPurchased = !item.IsPurchased;
-//            await _context.SaveChangesAsync();
+                if (leveledUp)
+                {
+                    userPoints.Level = newLevel;
+                }
 
-//            return Ok(new
-//            {
-//                success = true,
-//                message = item.IsPurchased ? "Товар отмечен как купленный" : "Товар отмечен как некупленный",
-//                itemId = item.Id,
-//                isPurchased = item.IsPurchased
-//            });
-//        }
-//        catch (Exception ex)
-//        {
-//            return BadRequest(new { error = ex.Message });
-//        }
-//    }
+                userPoints.LastUpdated = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
 
-//    [HttpPut("items/{itemId}/quantity")]
-//    public async Task<ActionResult> UpdateItemQuantity(int itemId, [FromBody] decimal quantity)
-//    {
-//        try
-//        {
-//            var item = await _context.ShoppingListItems.FindAsync(itemId);
-//            if (item == null)
-//                return NotFound(new { error = "Товар не найден" });
+                string message = leveledUp
+                    ? $"🎉 УРОВЕНЬ {userPoints.Level}! +{pointsToAdd} очков за {GetActionName(action)}"
+                    : $"+{pointsToAdd} очков за {GetActionName(action)}";
 
-//            item.Quantity = quantity;
-//            await _context.SaveChangesAsync();
+                int nextLevelPoints = (userPoints.Level + 1) * 1000;
+                double progress = (userPoints.Points % 1000) / 10.0;
 
-//            return Ok(new { success = true, quantity = item.Quantity });
-//        }
-//        catch (Exception ex)
-//        {
-//            return BadRequest(new { error = ex.Message });
-//        }
-//    }
-//}
+                return Ok(new
+                {
+                    success = true,
+                    message = message,
+                    data = new
+                    {
+                        points = userPoints.Points,
+                        level = userPoints.Level,
+                        leveledUp = leveledUp,
+                        nextLevelPoints = nextLevelPoints,
+                        progress = progress
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        private string GetActionName(string action)
+        {
+            return action switch
+            {
+                "product_added" => "добавление продукта",
+                "product_removed" => "удаление продукта",
+                "menu_created" => "создание меню",
+                "favorite_added" => "добавление в избранное",
+                "recipe_viewed" => "просмотр рецепта",
+                "shopping_list_generated" => "генерацию списка покупок",
+                _ => action
+            };
+        }
+    }
+}
