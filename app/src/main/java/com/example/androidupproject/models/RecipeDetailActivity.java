@@ -124,13 +124,22 @@ public class RecipeDetailActivity extends AppCompatActivity {
             public void onResponse(Call<ApiResponse<RecipeDto>> call, Response<ApiResponse<RecipeDto>> response) {
                 if (response.isSuccessful() && response.body() != null && response.body().data != null) {
                     displayRecipe(response.body().data);
+
+                    // Начисляем очки за просмотр рецепта
+                    ApiClient.getService().recipeViewed(sessionManager.getUserId()).enqueue(new Callback<PointsResponse>() {
+                        @Override
+                        public void onResponse(Call<PointsResponse> call, Response<PointsResponse> response) {
+                            if (response.isSuccessful() && response.body() != null) {
+                                Toast.makeText(RecipeDetailActivity.this, response.body().message, Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                        @Override
+                        public void onFailure(Call<PointsResponse> call, Throwable t) {}
+                    });
                 }
             }
-
             @Override
-            public void onFailure(Call<ApiResponse<RecipeDto>> call, Throwable t) {
-                Toast.makeText(RecipeDetailActivity.this, "Ошибка загрузки", Toast.LENGTH_SHORT).show();
-            }
+            public void onFailure(Call<ApiResponse<RecipeDto>> call, Throwable t) {}
         });
     }
 

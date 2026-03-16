@@ -19,6 +19,7 @@ import com.example.androidupproject.models.IngredientDto;
 import com.example.androidupproject.models.InventoryAddRequest;
 import com.example.androidupproject.models.InventoryItemDto;
 import com.example.androidupproject.models.InventoryResponse;
+import com.example.androidupproject.models.PointsResponse;
 import com.example.androidupproject.models.SessionManager;
 import com.example.androidupproject.models.SimpleResponse;
 import com.example.androidupproject.network.ApiClient;
@@ -86,7 +87,6 @@ public class MainActivity extends AppCompatActivity {
 
         InventoryAddRequest request = new InventoryAddRequest(name, 1.0, "шт");
 
-        // ИСПРАВЛЕНИЕ: указываем SimpleResponse вместо ApiResponse<Void>
         ApiClient.getService().addToInventory(sessionManager.getUserId(), request)
                 .enqueue(new Callback<SimpleResponse>() {
                     @Override
@@ -94,6 +94,18 @@ public class MainActivity extends AppCompatActivity {
                         if (response.isSuccessful() && response.body() != null && response.body().success) {
                             etNewProduct.setText("");
                             loadFridge();
+
+                            // Начисляем очки за добавление продукта
+                            ApiClient.getService().productAdded(sessionManager.getUserId()).enqueue(new Callback<PointsResponse>() {
+                                @Override
+                                public void onResponse(Call<PointsResponse> call, Response<PointsResponse> response) {
+                                    if (response.isSuccessful() && response.body() != null) {
+                                        Toast.makeText(MainActivity.this, response.body().message, Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                                @Override
+                                public void onFailure(Call<PointsResponse> call, Throwable t) {}
+                            });
                         }
                     }
                     @Override
@@ -135,10 +147,7 @@ public class MainActivity extends AppCompatActivity {
 
         // 3. Исправленный метод удаления (теперь принимает только один аргумент)
         private void deleteProduct(InventoryItemDto item) {
-            // ИСПРАВЛЕНИЕ: передаем два аргумента (userId и ingredientId)
-            // И используем SimpleResponse в Callback
             int userId = sessionManager.getUserId();
-            android.util.Log.d("DEBUG_DELETE", "UserId: " + userId + ", IngredientId: " + item.ingredientId);
             ApiClient.getService().deleteInventoryItem(userId, item.ingredientId)
                     .enqueue(new Callback<SimpleResponse>() {
                         @Override
@@ -146,13 +155,22 @@ public class MainActivity extends AppCompatActivity {
                             if (response.isSuccessful() && response.body() != null && response.body().success) {
                                 items.remove(item);
                                 notifyDataSetChanged();
-                                Toast.makeText(MainActivity.this, "Удалено", Toast.LENGTH_SHORT).show();
+
+                                // Начисляем очки за удаление продукта
+                                ApiClient.getService().productRemoved(userId).enqueue(new Callback<PointsResponse>() {
+                                    @Override
+                                    public void onResponse(Call<PointsResponse> call, Response<PointsResponse> response) {
+                                        if (response.isSuccessful() && response.body() != null) {
+                                            Toast.makeText(MainActivity.this, response.body().message, Toast.LENGTH_SHORT).show();
+                                        }
+                                    }
+                                    @Override
+                                    public void onFailure(Call<PointsResponse> call, Throwable t) {}
+                                });
                             }
                         }
                         @Override
-                        public void onFailure(Call<SimpleResponse> call, Throwable t) {
-                            Toast.makeText(MainActivity.this, "Ошибка сети", Toast.LENGTH_SHORT).show();
-                        }
+                        public void onFailure(Call<SimpleResponse> call, Throwable t) {}
                     });
         }
 

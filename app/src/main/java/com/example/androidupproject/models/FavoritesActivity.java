@@ -100,8 +100,18 @@ public class FavoritesActivity extends AppCompatActivity {
                         if (response.isSuccessful()) {
                             items.remove(position);
                             notifyItemRemoved(position);
-                            notifyItemRangeChanged(position, items.size());
-                            Toast.makeText(FavoritesActivity.this, "Удалено", Toast.LENGTH_SHORT).show();
+
+                            // Начисляем очки за добавление в избранное
+                            ApiClient.getService().favoriteAdded(sessionManager.getUserId()).enqueue(new Callback<PointsResponse>() {
+                                @Override
+                                public void onResponse(Call<PointsResponse> call, Response<PointsResponse> response) {
+                                    if (response.isSuccessful() && response.body() != null) {
+                                        Toast.makeText(FavoritesActivity.this, response.body().message, Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                                @Override
+                                public void onFailure(Call<PointsResponse> call, Throwable t) {}
+                            });
                         }
                     }
                     @Override

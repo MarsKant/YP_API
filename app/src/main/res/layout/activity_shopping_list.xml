@@ -28,29 +28,43 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:padding="8dp"
+            android:padding="12dp"
             android:background="#2D2D30"
             android:layout_marginBottom="1dp">
 
+            <Button
+                android:id="@+id/btnGenerateList"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="🔄 Сгенерировать"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:backgroundTint="#4CAF50"
+                android:textColor="#FFFFFF"
+                android:layout_marginEnd="8dp"/>
+
+            <Button
+                android:id="@+id/btnSaveToFile"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:text="💾 Сохранить"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:backgroundTint="#2196F3"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="8dp"/>
+
         </LinearLayout>
-
-
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvShoppingList"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:padding="8dp"/>
+            android:padding="8dp"
+            android:clipToPadding="false"/>
     </LinearLayout>
-
-    <Button
-        android:id="@+id/btnSaveToFile"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Сохранить"
-        android:backgroundTint="#2196F3"
-        android:textColor="#FFFFFF"
-        android:layout_margin="8dp"/>
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
@@ -60,4 +74,5 @@
         app:itemIconTint="@color/white"
         app:itemTextColor="@color/white"
         app:menu="@menu/bottom_nav_menu" />
+
 </LinearLayout>

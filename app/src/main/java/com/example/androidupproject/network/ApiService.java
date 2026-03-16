@@ -87,4 +87,26 @@ public interface ApiService {
     // Парсинг изображения с Povar.ru
     @GET("api/Images/parse-povar")
     Call<ImageParseResponse> parsePovarImage(@Query("query") String query, @Query("RecipeId") int recipeId);
+
+    // === Геймификация ===
+    @POST("api/Game/user/{userId}/product-added")
+    Call<PointsResponse> productAdded(@Path("userId") int userId);
+
+    @POST("api/Game/user/{userId}/product-removed")
+    Call<PointsResponse> productRemoved(@Path("userId") int userId);
+
+    @POST("api/Game/user/{userId}/menu-created")
+    Call<PointsResponse> menuCreated(@Path("userId") int userId);
+
+    @POST("api/Game/user/{userId}/favorite-added")
+    Call<PointsResponse> favoriteAdded(@Path("userId") int userId);
+
+    @POST("api/Game/user/{userId}/recipe-viewed")
+    Call<PointsResponse> recipeViewed(@Path("userId") int userId);
+
+    @POST("api/Game/user/{userId}/shopping-list-generated")
+    Call<PointsResponse> shoppingListGenerated(@Path("userId") int userId);
+
+    @GET("api/Game/user/{userId}/points")
+    Call<PointsResponse> getUserPoints(@Path("userId") int userId);
 }

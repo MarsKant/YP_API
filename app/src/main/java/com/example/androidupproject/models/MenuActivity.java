@@ -82,13 +82,21 @@ public class MenuActivity extends AppCompatActivity {
                             if (genResponse.success) {
                                 Toast.makeText(MenuActivity.this, "Меню готово!", Toast.LENGTH_SHORT).show();
                                 loadMenus();
-                            } else {
-                                String error = genResponse.error != null ? genResponse.error : "Неизвестная ошибка";
-                                Toast.makeText(MenuActivity.this, "Ошибка: " + error, Toast.LENGTH_LONG).show();
+
+                                // Начисляем очки за создание меню
+                                ApiClient.getService().menuCreated(sessionManager.getUserId()).enqueue(new Callback<PointsResponse>() {
+                                    @Override
+                                    public void onResponse(Call<PointsResponse> call, Response<PointsResponse> response) {
+                                        if (response.isSuccessful() && response.body() != null) {
+                                            Toast.makeText(MenuActivity.this, response.body().message, Toast.LENGTH_SHORT).show();
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onFailure(Call<PointsResponse> call, Throwable t) {
+                                    }
+                                });
                             }
-                        } else {
-                            Toast.makeText(MenuActivity.this,
-                                    "Ошибка сервера: " + response.code(), Toast.LENGTH_LONG).show();
                         }
                     }
 

@@ -2,6 +2,8 @@ package com.example.androidupproject;
 
 import android.content.Context;
 import android.content.Intent;
+
+import com.example.androidupproject.models.GameActivity;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.example.androidupproject.models.MenuActivity;
 import com.example.androidupproject.models.ShoppingListActivity;
@@ -29,7 +31,10 @@ public class NavigationHelper {
                 intent = new Intent(context, ShoppingListActivity.class);
             } else if (itemId == R.id.nav_fav) {
                 intent = new Intent(context, FavoritesActivity.class);
+            } else if (itemId == R.id.nav_game) {
+                intent = new Intent(context, GameActivity.class);
             }
+
 
             if (intent != null) {
                 // Убираем анимацию для плавного перехода
